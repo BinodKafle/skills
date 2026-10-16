@@ -3,8 +3,8 @@
 Agent skills I use for real engineering work. Each one is a folder with a `SKILL.md` and the reference files it
 loads on demand.
 
-Claude Code is the supported tool. Some skills rely on Claude Code features (frontmatter hooks, forked context), so
-other tools may load them without their safety rails.
+Claude Code is the supported tool. Some skills rely on Claude Code features (frontmatter hooks, `argument-hint`),
+so other tools may load them without their safety rails.
 
 ## Install
 
