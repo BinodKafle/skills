@@ -4,6 +4,7 @@
 from pathlib import Path
 import json
 import re
+import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -49,7 +50,11 @@ for skill_md in skills:
         problems.append(f"{relative}: frontmatter name {meta.get('name')!r} differs from folder {folder.name!r}")
     if not meta.get("description"):
         problems.append(f"{relative}: missing description")
-    lines = len(skill_md.read_text(encoding="utf-8").splitlines())
+    skill_text = skill_md.read_text(encoding="utf-8")
+    for reference in sorted(set(re.findall(r"`((?:references|templates)/[\w./-]+\.md)`", skill_text))):
+        if not (folder / reference).is_file():
+            problems.append(f"{relative}: SKILL.md mentions {reference}, which doesn't exist")
+    lines = len(skill_text.splitlines())
     if lines > MAX_SKILL_LINES:
         problems.append(f"{relative}: SKILL.md has {lines} lines (max {MAX_SKILL_LINES})")
     link = f"(./{relative}/SKILL.md)"
@@ -72,6 +77,30 @@ for missing in sorted(promoted - shipped):
     problems.append(f"{missing}: promoted but not in plugin.json skills")
 for extra in sorted(shipped - promoted):
     problems.append(f"{extra}: in plugin.json skills but not a promoted skill folder")
+
+def git(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
+
+
+def check_version_bump() -> None:
+    """If skills/ changed since the last tag, plugin.json's version must differ from the tagged one."""
+    tag = git("describe", "--tags", "--abbrev=0")
+    if tag.returncode != 0:
+        print("note: no git tag found, so the version-bump check was skipped")
+        return
+    tag_name = tag.stdout.strip()
+    if git("diff", "--quiet", tag_name, "--", "skills/").returncode == 0:
+        return
+    tagged = git("show", f"{tag_name}:.claude-plugin/plugin.json")
+    try:
+        tagged_version = json.loads(tagged.stdout).get("version")
+    except json.JSONDecodeError:
+        tagged_version = None
+    if tagged_version == plugin.get("version"):
+        problems.append(f"skills/ changed since {tag_name} but plugin.json version is still {tagged_version}")
+
+
+check_version_bump()
 
 for markdown in ROOT.rglob("*.md"):
     if ".git" in markdown.parts:
