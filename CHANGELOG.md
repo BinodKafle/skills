@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.1 (2026-10-16)
+
+- **break-this-pr:**
+  - The 22 `if:` hook entries are now one hook that matches state-changing git in the command text. During a
+    review the `if:` entries blocked commands they couldn't parse, such as `for` loops and `$(...)`, even with no
+    git in them. They also missed `git -C <dir> ...` and git called by full path.
+  - The guard now also covers merge, pull, cherry-pick, revert, am, rm, mv, update-ref and branch deletes and
+    moves. Fetch and merge-base stay allowed.
+  - Subagents (lenses, verifiers, a background review) are told in their prompt not to run state-changing git,
+    because the skill's hooks don't run inside subagents. The README says so.
+  - README fixes: when the checkpoint is skipped, what Light runs, the example report, and Claude Code-only fields.
+
 ## 1.1.0 (2026-10-16)
 
 - **break-this-pr:**

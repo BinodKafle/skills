@@ -8,71 +8,7 @@ hooks:
     - matcher: "Bash"
       hooks:
         - type: command
-          if: "Bash(git checkout *)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git switch *)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git stash)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git stash push *)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git stash save *)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git stash pop *)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git stash apply *)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git stash drop *)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git stash pop)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git stash apply)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git stash drop)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git stash clear)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git reset *)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git commit *)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git push *)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git rebase *)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git restore *)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git clean *)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git worktree add *)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git worktree remove *)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git worktree move *)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
-        - type: command
-          if: "Bash(git worktree prune *)"
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
+          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] || exit 0; j=$(cat); c=$(printf '%s\\n' \"$j\" | sed -n -E 's/.*\"command\":[[:space:]]*\"(([^\"\\\\]|\\\\.)*)\".*/\\1/p' | sed -E 's/\\\\[nt]/ /g'); [ -n \"$c\" ] || c=$j; printf '%s\\n' \"$c\" | grep -Eq '(^|[^[:alnum:]_.-])git([[:space:]]+-[Cc][[:space:]]+[^[:space:]]+|[[:space:]]+--?[[:alnum:]-]+(=[^[:space:]]*)?)*[[:space:]]+((checkout|switch|reset|commit|push|pull|merge|rebase|cherry-pick|revert|am|rm|mv|update-ref|restore|clean|worktree[[:space:]]+(add|remove|move|prune)|branch[^;&|]*[[:space:]](-[dDfmM]|--delete|--force|--move))([^[:alnum:]_-]|$)|stash([[:space:]]+(push|save|pop|apply|drop|clear)([^[:alnum:]_-]|$)|[[:space:]]+-|[[:space:]]*($|[;&|)\\\"])))' && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
 ---
 
 # Break this PR
@@ -105,8 +41,9 @@ With `--background`, don't review in this session:
    directory and the target, and says: "Read `<base directory>/SKILL.md` and follow it for `<target>` with the
    flags `<the same flags, without --background, plus --yes>`. Your final message is the complete report from
    `templates/report.md`, every section, never shortened."
-2. Tell the user it's running, how to follow it (`/tasks`, or select the agent in the agent panel), and that
-   state-changing git stays blocked in this project until it finishes.
+2. Tell the user it's running, and how to follow it (`/tasks`, or select the agent in the agent panel). Also tell
+   them that their own state-changing git is blocked in this project until it finishes, and that the subagent
+   itself is held back by its instructions only, because hooks don't run inside subagents.
 3. When it finishes, print its report in full, unchanged, then delete the marker (below) if it's still there. If it
    failed or stopped early, say so and show what it returned.
 
@@ -114,11 +51,18 @@ If the Agent tool can't run a subagent in the background here, say so and ask wh
 
 ## Lifecycle: marker, progress and checkpoint
 
-**The marker.** This skill's hooks block state-changing git (checkout, switch, stash, reset, rebase, restore,
-clean, worktree changes, and the commands that record or publish history) only while
-`.claude/review/.active` exists in the project directory (the session's working directory, which the hooks read
-as `$CLAUDE_PROJECT_DIR`) and is less than 4 hours old. The hooks stay registered for the rest of the session, so
-the marker is what switches them on and off.
+**The marker.** This skill's hook blocks state-changing git (checkout, switch, stash, reset, rebase, merge, pull,
+cherry-pick, revert, restore, clean, rm, mv, branch deletes and moves, worktree changes, and the commands that
+record or publish history) only while
+`.claude/review/.active` exists in the project directory (the session's working directory, which the hook reads
+as `$CLAUDE_PROJECT_DIR`) and is less than 4 hours old. The hook stays registered for the rest of the session, so
+the marker is what switches it on and off. It matches the command text, so a command that only mentions one of
+those git commands in a string is blocked too; rephrase it.
+
+**Subagents aren't covered.** The hook runs only in the session that invoked this skill, not inside subagents.
+Every subagent you launch (lenses, verifiers, a background review) gets this line in its prompt: "Never run git
+commands that change the working tree, the index, branches, stashes, worktrees or history; read with `git show`,
+`git diff` and `git log` only."
 - Create it first: `mkdir -p .claude/review && touch .claude/review/.active`.
 - Touch it again at each phase, so a long review doesn't outlive it.
 - Delete it (`rm -f .claude/review/.active`) on **every** exit path: the report is done, the user stops at the

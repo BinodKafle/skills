@@ -14,7 +14,7 @@ it:
 | **Eleven dimensions** | Inputs, intent, blast radius, root cause, breaking it, design, simplicity, standards and supply chain, operations, tests and words, independent verification. |
 | **Executes** | Value-level differential against the base tree, structural crossed corpora with ground truth, properties, and mutation of changed lines. |
 | **Precision** | A finding stands only if a fresh verifier re-runs its trigger and sees the same output. Severity gates the verdict; nits never block. |
-| **Safe on untrusted PRs** | PR text is data, rules come from the base tree, harness files are diffed before anything runs, and head code runs sandboxed without secrets or network. State-changing git is blocked by hooks while a review runs. |
+| **Safe on untrusted PRs** | PR text is data, rules come from the base tree, harness files are diffed before anything runs, and head code runs sandboxed without secrets or network. While a review runs, a hook blocks state-changing git in your session; subagents are held to it by their instructions. |
 | **Budgeted** | Depth tiers with time boxes, a checkpoint before the expensive part, a cannot-execute path that caps the verdict instead of guessing, and per-unit review for large PRs. |
 | **Learns** | Escaped defects become precedents and replay-eval rows; the method changes, not a growing checklist. |
 
@@ -44,8 +44,8 @@ pass `--background`.
 |---|---|
 | `<target>` | A PR number, ticket, branch or paths. Omit it to review the current branch against its base. |
 | `--depth light\|standard\|deep` | Override the depth the skill picks. Lighter than it would pick caps the verdict at NOT YET. |
-| `--background` | Run in a background subagent. Follow it with `/tasks`; the full report prints when it's done. |
-| `--yes` | Skip the checkpoint after D0 and triage. |
+| `--background` | Run in a background subagent, with no checkpoint. Follow it with `/tasks`; the full report prints when it's done. Hooks don't run inside subagents, so the subagent is held back from state-changing git by its instructions only. |
+| `--yes` | Skip the checkpoint (after D0 and triage; after D0 alone at Light). |
 | `--post` | After the report, draft a PR comment, show it, and post it only if you say yes. |
 
 ```text
@@ -60,9 +60,9 @@ pass `--background`.
 
 1. It creates `.claude/review/.active` (the marker that switches on the git-blocking hooks) and prints one line
    per phase. With the task tools enabled, each dimension is a task you can watch.
-2. After D0 and triage it stops at a checkpoint with the depth, time box, plan and estimated cost, and asks
-   proceed / lighter / stop.
-3. It works through D1 to D10, writing failing tests and the ledger as it goes.
+2. After D0 and triage (D0 alone at Light) it stops at a checkpoint with the depth, time box, plan and estimated cost, and asks
+   proceed / lighter / stop. `--yes` and `--background` skip it.
+3. It runs the rest of the dimensions its depth calls for, writing failing tests and the ledger as it goes.
 4. Its final message is the full report from [templates/report.md](./templates/report.md), and it deletes the
    marker.
 
@@ -79,12 +79,12 @@ pass `--background`.
 | Not covered | The export path (unchanged, no readers of the new field) |
 
 ## 3. Dimensions
-| D4 Break it | finding | crossed corpus 3 axes × 4 = 64 cells → 2 regressions | |
+| D4 Break it | finding | crossed corpus, 3 axes of 4 values = 64 cells → 2 regressions | |
 | D6 Simplicity | pass | no dead branches; flag has two readers (rg output) | |
 
 ## 4. Findings
 F1 · major · src/parser.py:88 · `pytest tests/test_parser.py::test_bom_header -x` · expected
-header "id", observed "﻿id" · introduced · reproduced by verifier (haiku)
+header "id", observed "id" preceded by a byte-order mark · introduced · reproduced by verifier (haiku)
 ```
 
 ## Set up a repo (optional but recommended)
@@ -108,6 +108,7 @@ header "id", observed "﻿id" · introduced · reproduced by verifier (haiku)
 | Problem | Fix |
 |---|---|
 | Git commands fail with "state-changing git is blocked while a review runs", but no review is running | A review stopped without cleaning up. Run `rm .claude/review/.active`. The marker also expires after 4 hours. |
+| A command is blocked during a review although it doesn't change git state | The hook matches command text, so a command that mentions, say, `git reset` in a string is blocked too. Rephrase it, or wait for the review to end. |
 | `--background` ran inline, or you can't see the agent | Background subagents depend on your Claude Code version. Check `/tasks`. The skill asks before falling back to inline. |
 | Commands fail with a sandbox error | You enabled `failIfUnavailable` and the sandbox can't start. Fix the sandbox, or accept a review capped at NOT YET (cannot execute). Don't turn the sandbox off for untrusted PRs. |
 | D0 fails to fetch reviews | The forge CLI (for GitHub, `gh`) is missing or not logged in. Run `gh auth status`. A failed fetch on a real PR blocks the verdict; a local branch has no reviews to fetch. |
@@ -115,7 +116,7 @@ header "id", observed "﻿id" · introduced · reproduced by verifier (haiku)
 
 ## Claude Code only
 
-`argument-hint` and the frontmatter `hooks` are Claude Code features, outside the Agent Skills spec. Other tools
+`argument-hint`, `disable-model-invocation` and the frontmatter `hooks` are Claude Code features, outside the Agent Skills spec. Other tools
 may reject the frontmatter, or load the skill without the git-blocking hooks; in that case, don't run it on a
 working copy you care about.
 
