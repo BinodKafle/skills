@@ -14,8 +14,13 @@ never drop a check to save time.
   files.
 - **Cheap checks first, heavy sweeps to measure.** The assumption-ledger tests find most defects in seconds. Start
   the heavy sweeps in the background straight away; they measure how widespread a defect is.
-- **Reuse CI.** If CI already ran the suite on this exact head SHA, read its result instead of re-running it. Run
-  locally only what CI doesn't cover.
+- **Reuse CI, with conditions.** A CI run on the head used the head's own workflow and harness files, which the PR
+  may have changed. Read a CI result instead of re-running the suite only when all of these hold:
+  - the workflow files and the harness files (`safety.md` §3) are identical between base and head;
+  - the result is fetched from the forge for the exact head SHA;
+  - the run's URL is recorded in the ledger as the evidence.
+
+  Re-run locally any test a finding or a pass rests on, and whatever CI doesn't cover.
 - **Route by task.** A fast model handles mechanical steps (fetching comments, running commands, merging
   duplicates); the strongest model handles ledgers, reasoning and verification.
 - **Keep the main context clean.** Raw tool output stays in files or subagents; the ledger gets summaries.

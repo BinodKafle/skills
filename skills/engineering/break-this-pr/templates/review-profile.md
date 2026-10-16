@@ -11,14 +11,14 @@ delete the rest. One example line is given under each heading.
 ## Base branch and range
 - Default base: `develop`
 - How to get head and base: `gh pr view <N> --json headRefOid,baseRefOid`
-- Restrictions: `git merge-base` is blocked by a hook; use the PR's base ref.
+- Restrictions: the base is always the PR's base ref, never a local branch that may be stale.
 
 ## Runner flags
 - Serial, fail fast, selected tests: `pytest -n 0 -x -p no:cacheprovider <file>::<test>`
 - Count failures: `grep -c '^FAILED' <full output file>`
 
 ## Settings that change results
-- Thread count: CI runs with 2 workers; run result-sensitive tests at `POLARS_MAX_THREADS=1` and `2`.
+- Thread count: CI runs with 2 workers; run result-sensitive tests with the library's thread variable at 1 and 2.
 - Platform: image goldens drift on macOS; render them only in the pinned container.
 
 ## Test layout rules

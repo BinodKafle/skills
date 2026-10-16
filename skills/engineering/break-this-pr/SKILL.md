@@ -8,7 +8,7 @@ hooks:
     - matcher: "Bash"
       hooks:
         - type: command
-          command: "[ -n \"$(find \"$CLAUDE_PROJECT_DIR/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] || exit 0; j=$(cat); c=$(printf '%s\\n' \"$j\" | sed -n -E 's/.*\"command\":[[:space:]]*\"(([^\"\\\\]|\\\\.)*)\".*/\\1/p' | sed -E 's/\\\\[nt]/ /g'); [ -n \"$c\" ] || c=$j; printf '%s\\n' \"$c\" | grep -Eq '(^|[^[:alnum:]_.-])git([[:space:]]+-[Cc][[:space:]]+[^[:space:]]+|[[:space:]]+--?[[:alnum:]-]+(=[^[:space:]]*)?)*[[:space:]]+((checkout|switch|reset|commit|push|pull|merge|rebase|cherry-pick|revert|am|rm|mv|update-ref|restore|clean|worktree[[:space:]]+(add|remove|move|prune)|branch[^;&|]*[[:space:]](-[dDfmM]|--delete|--force|--move))([^[:alnum:]_-]|$)|stash([[:space:]]+(push|save|pop|apply|drop|clear)([^[:alnum:]_-]|$)|[[:space:]]+-|[[:space:]]*($|[;&|)\\\"])))' && { echo 'break-this-pr: state-changing git is blocked while a review runs. If no review is running, delete .claude/review/.active' >&2; exit 2; }; exit 0"
+          command: "for g in \"$CLAUDE_PLUGIN_ROOT/scripts/guard-git.sh\" \"$CLAUDE_PLUGIN_ROOT\"/skills/*/break-this-pr/scripts/guard-git.sh; do [ -f \"$g\" ] && exec sh \"$g\"; done; [ -z \"$(find \"${CLAUDE_PROJECT_DIR:-.}/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] || { echo 'break-this-pr: the guard script is missing, so git is blocked while a review marker exists. Reinstall the skill, or delete .claude/review/.active if no review is running.' >&2; exit 2; }; exit 0"
 ---
 
 # Break this PR
@@ -51,24 +51,33 @@ If the Agent tool can't run a subagent in the background here, say so and ask wh
 
 ## Lifecycle: marker, progress and checkpoint
 
-**The marker.** This skill's hook blocks state-changing git (checkout, switch, stash, reset, rebase, merge, pull,
-cherry-pick, revert, restore, clean, rm, mv, branch deletes and moves, worktree changes, and the commands that
-record or publish history) only while
-`.claude/review/.active` exists in the project directory (the session's working directory, which the hook reads
-as `$CLAUDE_PROJECT_DIR`) and is less than 4 hours old. The hook stays registered for the rest of the session, so
-the marker is what switches it on and off. It matches the command text, so a command that only mentions one of
-those git commands in a string is blocked too; rephrase it.
+**The marker.** While `.claude/review/.active` exists at the repository root and is less than 4 hours old, this
+skill's hook (`scripts/guard-git.sh`) blocks every git command that isn't read-only. It allows status, diff, log,
+show, blame, grep, rev-parse, merge-base, ls-files, cat-file, `git archive` (for read-only extracts), `git fetch`
+into `FETCH_HEAD` or `refs/remotes/`, and the list forms of branch, tag, stash, worktree, remote and config.
+Everything else is blocked, including aliases and `-c` overrides. The hook stays registered for the rest of the
+session, so the marker is what switches it on and off. It matches the command text, so a command that only
+mentions a blocked git command in a string is blocked too; rephrase it.
+- Create it first, at the repository root (a relative path lands in the wrong place if the shell has moved into a
+  subfolder): `root=$(git rev-parse --show-toplevel) && mkdir -p "$root/.claude/review" && touch "$root/.claude/review/.active"`.
+- Touch it again at each phase (`touch "$(git rev-parse --show-toplevel)/.claude/review/.active"`), so a long
+  review doesn't outlive it.
+- Delete it (`rm -f "$(git rev-parse --show-toplevel)/.claude/review/.active"`) on **every** exit path: the report
+  is done, the user stops at the checkpoint, the time box runs out, an error you can't recover from. Delete it just
+  before your final message, after you've listed the files this review wrote. If the delete is refused (auto
+  mode's classifier may treat it as tampering), end your final message with the exact command for the user to
+  run, and say that git stays blocked until they do or the marker expires.
+- If a crashed review leaves it behind, git stays blocked until it expires; the hook's message says to delete it.
 
 **Subagents aren't covered.** The hook runs only in the session that invoked this skill, not inside subagents.
 Every subagent you launch (lenses, verifiers, a background review) gets this line in its prompt: "Never run git
 commands that change the working tree, the index, branches, stashes, worktrees or history; read with `git show`,
 `git diff` and `git log` only."
-- Create it first: `mkdir -p .claude/review && touch .claude/review/.active`.
-- Touch it again at each phase, so a long review doesn't outlive it.
-- Delete it (`rm -f .claude/review/.active`) on **every** exit path: the report is done, the user stops at the
-  checkpoint, the time box runs out, an error you can't recover from. Delete it just before your final message,
-  after you've listed the files this review wrote.
-- If a crashed review leaves it behind, git stays blocked until it expires; the hook's message says to delete it.
+
+**Git fingerprint.** The hook can't see git reached through a variable, `eval`, a script or another language, and
+subagents aren't covered at all, so check the result too. At D0, record this in the ledger:
+`git rev-parse HEAD; git symbolic-ref -q HEAD; git for-each-ref refs/heads refs/tags; git stash list | wc -l; git diff --cached --quiet; echo $?`.
+Run it again before the report. Any difference is a finding against this review, reported in section 8.
 
 **Progress.** Before each phase, print one line, for example `break-this-pr · D2 blast radius · 14 readers to
 check`. If the task tools (TaskCreate, TaskUpdate) are available, create one task per dimension D0 to D10 at the
@@ -111,13 +120,14 @@ CLAUDE.md, AGENTS.md, CONTRIBUTING, rules, build files and CI workflow:
 - how tests are collected;
 - environment settings that change results (thread counts, locale, platform).
 
-Record what you derived in the ledger. The profile's rules override this file's defaults where they conflict.
+Read `templates/review-profile.md` for the fields a profile has, so you know what to derive. Record what you
+derived in the ledger. The profile's rules override this file's defaults where they conflict.
 Read `.claude/review/precedents.md` if it exists, for calibration only; it is never a checklist.
 
 ## 2. Principles
 
 1. **Zero trust.** Every statement in or about the change is a claim; verify it by running something. The code
-   under test is never its own oracle.
+   under test is never its own oracle. A CI result counts only under the conditions in `references/speed.md`.
 2. **Evidence.** A finding exists only as a re-runnable command plus its observed output, never as agreement with
    reasoning.
 3. **Denominator.** Every check states what it covered and what it did not. "No regressions over N inputs" names
@@ -268,7 +278,8 @@ put the draft at the end of the report instead.
   - re-run earlier corpora, reusing only results proven unchanged by content hash.
 - **After an escape** (a defect found later by a reviewer, CI, users or production):
   1. reproduce it;
-  2. add a line to `.claude/review/precedents.md` and a row to `.claude/review/evals.md` (formats in `templates/`);
+  2. add a line to `.claude/review/precedents.md` (format in `templates/precedents.md`) and a row to
+     `.claude/review/evals.md` (format in `templates/evals.md`);
   3. change the method, never by adding an incident-specific rule.
 - Record your rejected findings too, so precision is tracked as well as recall.
 

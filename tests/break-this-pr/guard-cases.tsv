@@ -1,0 +1,154 @@
+# expected exit<TAB>command, run while a review marker is active. 2 = blocked, 0 = allowed.
+# Blocked: state-changing git, including what the 1.1.1 guard missed.
+2	git reset --hard
+2	git commit -m x
+2	git switch main
+2	git checkout -b y
+2	git checkout .
+2	git stash
+2	git stash -u
+2	git stash push
+2	git stash pop
+2	git stash branch b
+2	git branch -D x
+2	git branch --delete x
+2	git branch -M y
+2	git branch -c a b
+2	git branch -f main HEAD~1
+2	git branch x
+2	git add -A
+2	git apply x.patch
+2	git am x.mbox
+2	git tag v1
+2	git tag -d v1
+2	git read-tree HEAD
+2	git checkout-index -a
+2	git fetch origin +pr:main
+2	git fetch origin pr:main
+2	git fetch -f origin x
+2	git fetch --update-head-ok origin
+2	git notes add -m x
+2	git config user.name x
+2	git config --unset user.name
+2	git config set user.name x
+2	git gc --prune=now
+2	git bisect start
+2	git submodule update
+2	git sparse-checkout set x
+2	git symbolic-ref HEAD refs/heads/x
+2	git update-index --assume-unchanged x
+2	git update-ref refs/heads/x HEAD
+2	git reflog expire --all
+2	git remote set-url origin z
+2	git remote add x y
+2	git worktree add ../x
+2	git restore --staged .
+2	git clean -fd
+2	git rm x
+2	git mv a b
+2	git merge x
+2	git rebase main
+2	git pull
+2	git push
+2	git cherry-pick abc
+2	git revert abc
+2	git init
+2	git maintenance run
+2	git myalias
+2	git filter-branch
+2	git replace a b
+# Blocked: ways around the 1.1.1 guard.
+2	git --git-dir .git reset --hard
+2	git -C "a b" reset --hard
+2	git -C sub reset --hard
+2	git --work-tree=. checkout .
+2	git -c core.pager=x log
+2	git --exec-path=/tmp log
+2	git --unknown-option status
+2	/usr/bin/git reset --hard
+2	\git reset
+2	command git reset
+2	env GIT_DIR=.git git reset
+2	GIT_DIR=.git git reset
+2	sudo git reset
+2	nohup git reset &
+2	timeout 5 git reset
+2	xargs git reset < f
+2	sh -c 'git reset --hard'
+2	bash -c "git stash"
+2	git	reset --hard
+2	cd x && git checkout main
+2	git status; git reset --hard
+2	git log | git apply
+2	echo $(git stash)
+2	echo `git stash`
+2	find . -exec git checkout {} ;
+2	if true; then git reset; fi
+2	for b in a c; do git branch -D "$b"; done
+# Blocked by design: a command that only mentions state-changing git in a string.
+2	echo 'git reset'
+# Allowed: read-only git and the commands the review itself runs.
+0	git status
+0	git diff --stat main...HEAD
+0	git log --oneline -5
+0	git show HEAD:README.md
+0	git rev-parse --show-toplevel
+0	git merge-base HEAD origin/main
+0	git ls-files
+0	git cat-file -p HEAD
+0	git blame x
+0	git grep -n foo
+0	git describe --tags
+0	git for-each-ref refs/heads
+0	git check-ignore -q .claude/review/.active
+0	git archive abc | tar -x -C /tmp/base
+0	git fetch origin
+0	git fetch origin pull/1/head
+0	git fetch origin pull/1/head:refs/remotes/pr/1
+0	git fetch --all --prune
+0	git branch
+0	git branch -a
+0	git branch --show-current
+0	git branch --list "feat/*"
+0	git branch --contains abc
+0	git tag
+0	git tag -l "v*"
+0	git stash list
+0	git stash show -p
+0	git worktree list
+0	git remote -v
+0	git remote get-url origin
+0	git config --get user.name
+0	git config --list
+0	git config get user.name
+0	git reflog
+0	git reflog show HEAD
+0	git notes list
+0	git submodule status
+0	git -C "a b" log
+0	git --no-pager log
+0	git -P diff
+0	git --git-dir .git log
+0	git --version
+0	git
+0	git log --grep "add tests"
+0	git log --format="%H %s"
+0	git diff > /tmp/x.patch
+0	git stash list; git log
+0	/usr/bin/git log
+0	gh pr view 1 --json headRefOid,baseRefOid
+# Allowed: not git, or git not in command position.
+0	for f in *; do echo $f; done
+0	echo "$(date)"
+0	ls .git
+0	which git
+0	grep -rn git src
+0	rm -f .claude/review/.active
+0	mkdir -p .claude/review && touch .claude/review/.active
+0	pytest -x tests/test_parser.py
+0	gitk
+0	git-lfs version
+# The git fingerprint from SKILL.md, and symbolic-ref read forms.
+0	git rev-parse HEAD; git symbolic-ref -q HEAD; git for-each-ref refs/heads refs/tags; git stash list | wc -l; git diff --cached --quiet; echo $?
+0	git symbolic-ref --short HEAD
+2	git symbolic-ref -d HEAD
