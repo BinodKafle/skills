@@ -1,6 +1,6 @@
 # Working in this repo
 
-Rules for adding or changing a skill. `scripts/check.sh` enforces the mechanical ones; run it before every commit.
+Rules for adding or changing a skill. `python3 scripts/check.py` enforces the mechanical ones; run it before every commit.
 
 ## Layout
 
@@ -11,7 +11,7 @@ Rules for adding or changing a skill. `scripts/check.sh` enforces the mechanical
   - `in-progress/`: drafts, not shipped.
 
   Add a new bucket only when a skill doesn't fit an existing one, and add it to `PROMOTED_BUCKETS` in
-  `scripts/check.sh`.
+  `scripts/check.py`.
 - Detail that isn't needed on every run goes in files beside `SKILL.md` (`references/`, `templates/`), referenced
   from `SKILL.md` with a line saying when to read each. Keep `SKILL.md` under 500 lines.
 - A skill may have a human-facing `README.md` in its folder (what it does, setup, cost). It isn't loaded by the
