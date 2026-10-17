@@ -4,7 +4,8 @@
 
 - **break-this-pr:**
   - The git guard is now `scripts/guard-git.sh`, with tests. While a review runs it allows only read-only git (an
-    allowlist), and blocks anything else, including aliases and `-c` overrides.
+    allowlist), and blocks anything else, including aliases and `-c` overrides. `git config` is allowed only
+    when a read action comes first, and `--output` (or `git archive -o`) is blocked because it writes files.
   - Fixed: the 1.1.1 guard let through `add`, `apply`, `tag`, `read-tree`, `checkout-index`, `notes`, `config`,
     `gc`, `stash branch`, `bisect`, `submodule update`, `sparse-checkout`, `symbolic-ref`, `update-index` and
     forced fetches. It could also be bypassed with `--git-dir <dir>` or a quoted `-C` path.

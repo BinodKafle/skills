@@ -138,6 +138,10 @@ verdict=$(printf '%s' "$command_text" | awk '
     }
     if (i > ntok) return
     subcmd = tok[i]
+    # --output (and archive -o) makes a read-only command write any file, including .git/HEAD, refs and config.
+    for (j = i + 1; j <= ntok; j++) {
+      if (tok[j] ~ /^--output(=|$)/ || (subcmd == "archive" && tok[j] ~ /^-[^-]*o/)) { deny("blocked `git " subcmd " " tok[j] "`: it writes a file"); return }
+    }
     if (has("status diff diff-tree diff-index diff-files log show shortlog whatchanged rev-parse rev-list merge-base ls-files ls-tree ls-remote cat-file blame annotate grep describe name-rev for-each-ref show-ref cherry range-diff check-ignore check-attr count-objects var version help archive", subcmd)) return
     a = (i < ntok) ? tok[i + 1] : ""
     if (subcmd == "stash" && has("list show", a)) return
@@ -156,12 +160,11 @@ verdict=$(printf '%s' "$command_text" | awk '
       return
     }
     if (subcmd == "reflog" && !has("expire delete drop", a)) return
+    # The read action must come first, after scope flags. Git refuses a second action, so a write later fails.
     if (subcmd == "config") {
-      for (j = i + 1; j <= ntok; j++) {
-        if (has("--unset --unset-all --add --replace-all --rename-section --remove-section -e --edit set unset rename-section remove-section edit", tok[j])) { deny("blocked `git config " tok[j] "`: it writes config"); return }
-      }
-      for (j = i + 1; j <= ntok; j++) if (has("--get --get-all --get-regexp --get-urlmatch --list -l get list", tok[j])) return
-      deny("blocked `git config` without --get or --list: it may write config"); return
+      for (j = i + 1; j <= ntok && (has("--global --system --local --worktree --show-origin --show-scope --null -z --name-only --includes --no-includes", tok[j]) || tok[j] ~ /^--type=/); j++);
+      if (j <= ntok && has("--get --get-all --get-regexp --get-urlmatch --list -l get list", tok[j])) return
+      deny("blocked `git config`: only a read (--get, --list, get, list) is allowed, and it must come first"); return
     }
     if (subcmd == "branch" || subcmd == "tag") {
       nonflag = 0; listish = 0
