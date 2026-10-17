@@ -10,13 +10,24 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # GNU and BSD sed, find and awk differ; the guard script must work with both.
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0 # tags, for the version-bump check
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
-      - name: Skills, manifests and READMEs agree
+      - name: Skills, manifests, READMEs and changelog agree
         run: python3 scripts/check.py
+      - name: break-this-pr git guard
+        run: sh tests/break-this-pr/guard-git.test.sh
+      - name: Plugin and marketplace manifests validate
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          npm install --global @anthropic-ai/claude-code@2.1.301
+          claude plugin validate . --strict

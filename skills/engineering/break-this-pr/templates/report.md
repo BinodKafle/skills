@@ -59,7 +59,8 @@ Note that the verifiers share one model family.
 
 ## 8. Files this review wrote
 `git status --porcelain` plus scratch paths. Only tests, the ledger and scratch files are allowed; anything else is
-a finding against this review. Confirm the marker was deleted.
+a finding against this review. State whether the git fingerprint matched D0 (any difference is a finding against
+this review), and confirm the marker was deleted.
 
 ## 9. Decisions for the user
 1. (each `UNDEFINED: needs a decision`, a split recommendation, a gitignore line to add, a draft to post)

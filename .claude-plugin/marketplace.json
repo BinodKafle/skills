@@ -9,7 +9,6 @@
     {
       "name": "binodkafle-skills",
       "source": "./",
-      "description": "Binod Kafle's agent skills for software engineers: adversarial PR review and more.",
       "category": "engineering",
       "keywords": [
         "engineering",

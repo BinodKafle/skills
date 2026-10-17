@@ -1,0 +1,38 @@
+name: release
+
+# Tags each new plugin version, so scripts/check.py can compare later changes against the last release. It runs on
+# every push to main, not only when plugin.json changes, so a release that failed is retried on the next push. When
+# the tag already exists it stops at once.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: Tag and release the version in plugin.json, if it's new
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(python3 -c 'import json; print(json.load(open(".claude-plugin/plugin.json"))["version"])')
+          tag="v$version"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "$tag already exists"
+            exit 0
+          fi
+          # CI unset: with no v* tag yet, check.py only notes it, since this run creates the first one.
+          CI= python3 scripts/check.py
+          # The CHANGELOG section for this version, without its heading.
+          awk -v v="$version" '{ sub(/\r$/, "") } /^## / { found = ($2 == v); next } found' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "CHANGELOG.md has no notes under a '## $version' heading" >&2
+            exit 1
+          fi
+          gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --notes-file notes.md

@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.2.0 (2026-10-16)
+
+- **break-this-pr:**
+  - The git guard is now `scripts/guard-git.sh`, with tests. While a review runs, it allows only read-only git
+    from an allowlist. Anything else is blocked, including aliases, `-c` overrides and `GIT_*` variables.
+  - The allowlist is strict about forms that write. `git config` must start with a read action. `--output` and
+    `git archive -o` are blocked. `git fetch` takes only basic flags. `git remote` and `git reflog` allow only
+    their read forms. A branch or tag name with display flags such as `--sort` is a create, not a listing.
+  - The guard finds git in more places: after a backslash line continuation, after a leading redirection
+    (`2>/dev/null git ...`), and after a wrapper with arguments (`xargs -n 1 git`, `nice -n 10 git`). It no
+    longer skips quoted strings past a cap.
+  - Fixed: the 1.1.1 guard let through `add`, `apply`, `tag`, `read-tree`, `checkout-index`, `notes`, `config`,
+    `gc`, `stash branch`, `bisect`, `submodule update`, `sparse-checkout`, `symbolic-ref`, `update-index` and
+    forced fetches. It could also be bypassed with `--git-dir <dir>` or a quoted `-C` path.
+  - Fixed: the guard could be silently off. The marker is now created at the repository root (the superproject's
+    root inside a submodule), and the review reuses the absolute path it printed. The guard looks for it in the
+    project dir, the shell's cwd and every folder above them.
+  - If the guard script is missing, the fallback blocks commands that mention git while a marker exists, instead
+    of allowing them. The launcher also finds the script in a flat `skills/break-this-pr/` plugin layout.
+  - The guard is faster: it runs no git, and with no marker it starts no `find`. Long commands are checked in
+    linear time.
+  - New git fingerprint, recorded at D0 and checked before the report. It catches changes the guard can't see,
+    such as git through a variable or a script, or from a subagent. It covers the working tree, branches,
+    stashes, worktrees and local config. It leaves out tags, which a plain fetch can add.
+  - CI results are reused only when the workflow and harness files are unchanged between base and head.
+  - The README's `--post` row says it never posts from a background run or for an external-contributor PR.
+  - The review-profile template no longer says `git merge-base` is blocked, and its examples are generic.
+- Repo: `CLAUDE.md` moved to `.claude/CLAUDE.md`, so `claude plugin validate --strict` passes.
+- `scripts/check.py` checks more. Every file beside SKILL.md must be named in it. Both READMEs must label each
+  skill, and drafts must stay out of the bucket READMEs. The changelog heading must match the version, and the
+  version must be above the last `v*` tag (CI fails when there is no tag). It runs on Python 3.9.
+- CI runs the guard tests on Linux and macOS, and `claude plugin validate . --strict`. The release workflow fails
+  instead of publishing empty notes, can make the first release, and retries a failed release on the next push.
+
 ## 1.1.1 (2026-10-16)
 
 - **break-this-pr:**
