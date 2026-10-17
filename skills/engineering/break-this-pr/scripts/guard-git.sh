@@ -5,7 +5,7 @@
 #
 # It matches command text, so it is a guard rail against accidents and injected commands, not a security
 # boundary: git reached through a variable (`$g reset`), `eval`, or a script or another language is not seen.
-# Needs only sh, awk, find and git.
+# Needs only sh, awk and find.
 
 MAX_AGE_MINUTES=240
 input=$(cat)
@@ -25,40 +25,48 @@ json_string() {
     BEGIN { RS = "\001" }
     {
       if (!match($0, "\"" key "\"[ \t\r\n]*:[ \t\r\n]*\"")) exit 1
-      s = substr($0, RSTART + RLENGTH); out = ""
-      for (i = 1; i <= length(s); i++) {
-        c = substr(s, i, 1)
-        if (c == "\"") { printf "%s", out; exit 0 }
-        if (c != "\\") { out = out c; continue }
-        i++; e = substr(s, i, 1)
-        if (e == "n") out = out "\n"
-        else if (e == "t") out = out "\t"
-        else if (e == "r" || e == "b" || e == "f") out = out " "
-        else if (e == "u") {
-          v = hexval(substr(s, i + 1, 4)); i += 4
-          out = out ((v >= 32 && v < 127) ? sprintf("%c", v) : (v == 10 ? "\n" : " "))
+      # Prints as it goes, since building a long string a character at a time is slow. On exit 1 (no closing
+      # quote) the caller discards the output.
+      n = split(substr($0, RSTART + RLENGTH), ch, "")
+      for (i = 1; i <= n; i++) {
+        c = ch[i]
+        if (c == "\"") exit 0
+        if (c == "\\") {
+          i++; c = ch[i]
+          if (c == "n") c = "\n"
+          else if (c == "t") c = "\t"
+          else if (c == "r" || c == "b" || c == "f") c = " "
+          else if (c == "u") {
+            v = hexval(ch[i + 1] ch[i + 2] ch[i + 3] ch[i + 4]); i += 4
+            c = (v >= 32 && v < 127) ? sprintf("%c", v) : (v == 10 ? "\n" : " ")
+          }
         }
-        else out = out e
+        printf "%s", c
       }
       exit 1
     }'
 }
 
 cwd=$(json_string cwd) || cwd=$PWD
+
+# The marker sits at the repository root, or the superproject's root inside a submodule. Both are above the
+# project dir and the shell's cwd, so look in each of those and every folder above it. Only the builtin -e runs
+# when there's no marker, which is the common case.
 marker=
-for dir in "${CLAUDE_PROJECT_DIR:-}" "$cwd" "$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)"; do
-  [ -n "$dir" ] || continue
-  if [ -n "$(find "$dir/.claude/review/.active" -mmin -"$MAX_AGE_MINUTES" 2>/dev/null)" ]; then
-    marker="$dir/.claude/review/.active"
-    break
-  fi
+for dir in "${CLAUDE_PROJECT_DIR:-}" "$cwd"; do
+  while [ -n "$dir" ] && [ -z "$marker" ]; do
+    if [ -e "$dir/.claude/review/.active" ] && [ -n "$(find "$dir/.claude/review/.active" -mmin -"$MAX_AGE_MINUTES" 2>/dev/null)" ]; then
+      marker="$dir/.claude/review/.active"
+    fi
+    dir=${dir%/*}
+  done
 done
 [ -n "$marker" ] || exit 0
 
 block() {
-  echo "break-this-pr: $1. A review is running, so only read-only git is allowed (status, diff, log, show," \
-    "archive, fetch into FETCH_HEAD or refs/remotes/, and list forms). Rephrase the command, or if no review is" \
-    "running, delete $marker" >&2
+  echo "break-this-pr: $1. A review is running, so only read-only git is allowed (such as status, diff, log, show," \
+    "blame, grep, rev-parse, archive, fetch into FETCH_HEAD or refs/remotes/, and list forms; the full list is in" \
+    "guard-git.sh). Rephrase the command, or if no review is running, delete $marker" >&2
   exit 2
 }
 
@@ -81,25 +89,25 @@ verdict=$(printf '%s' "$command_text" | awk '
 
   # Splits a command line into segments of tokens, queueing the inside of quoted strings to be checked as
   # commands too (`sh -c "git reset"`).
-  function scan(s,   i, c, n, q) {
-    ntok = 0; cur = ""; in_token = 0; n = length(s)
+  function scan(s,   i, c, n, q, ch) {
+    ntok = 0; cur = ""; in_token = 0; n = split(s, ch, "")
     for (i = 1; i <= n; i++) {
-      c = substr(s, i, 1)
+      c = ch[i]
       if (c == "\\") {
         i++
-        if (substr(s, i, 1) != "\n") { cur = cur substr(s, i, 1); in_token = 1 }  # backslash-newline joins lines
+        if (ch[i] != "\n") { cur = cur ch[i]; in_token = 1 }  # backslash-newline joins lines
         continue
       }
       if (c == "\047") {
         q = ""
-        for (i++; i <= n && substr(s, i, 1) != "\047"; i++) q = q substr(s, i, 1)
+        for (i++; i <= n && ch[i] != "\047"; i++) q = q ch[i]
         cur = cur q; in_token = 1; queue_nested(q); continue
       }
       if (c == "\"") {
         q = ""
-        for (i++; i <= n && substr(s, i, 1) != "\""; i++) {
-          if (substr(s, i, 1) == "\\" && i < n) i++
-          q = q substr(s, i, 1)
+        for (i++; i <= n && ch[i] != "\""; i++) {
+          if (ch[i] == "\\" && i < n) i++
+          q = q ch[i]
         }
         cur = cur q; in_token = 1; queue_nested(q); continue
       }
@@ -107,13 +115,13 @@ verdict=$(printf '%s' "$command_text" | awk '
       if (c == "<" || c == ">") {
         if (cur ~ /^[0-9]+$/) { cur = ""; in_token = 0 }  # the fd number in 2>
         flush_token()
-        while (index("<>&|", substr(s, i + 1, 1))) i++  # >>, >&, <&, >|, <<
+        while (index("<>&|", ch[i + 1])) i++  # >>, >&, <&, >|, <<
         redirect = 1; continue
       }
       if (c == ";" || c == "&" || c == "|" || c == "(" || c == ")" || c == "`" || c == "\n") {
         end_segment(); continue
       }
-      if (c == "$" && substr(s, i + 1, 1) == "(") { end_segment(); i++; continue }
+      if (c == "$" && ch[i + 1] == "(") { end_segment(); i++; continue }
       cur = cur c; in_token = 1
     }
     end_segment()

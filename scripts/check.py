@@ -15,7 +15,6 @@ NON_PROMOTED_BUCKETS = ("in-progress",)
 MAX_SKILL_LINES = 500
 SKILL_DIRS = ("references", "templates", "scripts")
 SKIP_DIRS = {".git", ".idea", "node_modules", "__pycache__"}
-IGNORED_FILES = {".DS_Store"}
 
 
 def git(*args: str) -> subprocess.CompletedProcess:
@@ -52,29 +51,42 @@ def semver(version: str) -> tuple[int, ...] | None:
 
 
 def invocation_label(readme_text: str, link: str) -> str | None:
-    """The "User-invoked" / "Model-invoked" label that the link sits under, or None."""
-    position = readme_text.find(link)
-    before = readme_text[:position]
-    labels = {label: before.rfind(label) for label in ("User-invoked", "Model-invoked")}
+    """The "User-invoked" / "Model-invoked" label of the list item that links to the skill, or None.
+
+    Only the label inside the item's own section counts: the text after the last heading that isn't a label.
+    """
+    item = re.search(rf"^\s*[-*] \[[^\]]*\]{re.escape(link)}", readme_text, re.MULTILINE)
+    if not item:
+        return None
+    before = readme_text[:item.start()]
+    section = re.split(r"^#+ (?!(?:User|Model)-invoked).*$", before, flags=re.MULTILINE)[-1]
+    labels = {label: section.rfind(label) for label in ("User-invoked", "Model-invoked")}
     label, found_at = max(labels.items(), key=lambda item: item[1])
     return label if found_at >= 0 else None
+
+
+def is_hidden(parts: tuple[str, ...]) -> bool:
+    """Editor swap files, .DS_Store and other dotfiles aren't part of a skill."""
+    return any(part.startswith(".") for part in parts)
 
 
 def check_skill_files(folder: Path, text: str) -> list[str]:
     """Files SKILL.md names must exist, and every file beside SKILL.md must be named in it."""
     problems = []
-    pattern = rf"(?:\./)?((?:{'|'.join(SKILL_DIRS)})/[\w./-]+\.\w+)"
+    # Not preceded by a path or URL character, so `tools/scripts/x.sh` and `https://.../scripts/x.sh` don't count.
+    pattern = rf"(?<![\w/.:-])(?:\./)?((?:{'|'.join(SKILL_DIRS)})/[\w./-]+\.\w+)"
     for reference in sorted(set(re.findall(pattern, text))):
         if not (folder / reference).is_file():
             problems.append(f"{rel(folder)}: SKILL.md mentions {reference}, which doesn't exist")
     for path in sorted(folder.rglob("*")):
-        if not path.is_file() or path.name in IGNORED_FILES or path.parent == folder:
+        parts = path.relative_to(folder).parts
+        if not path.is_file() or path.parent == folder or SKIP_DIRS.intersection(parts) or is_hidden(parts):
             continue
         relative = str(path.relative_to(folder))
         if relative not in text:
             problems.append(f"{rel(folder)}: {relative} is never named in SKILL.md (say when to read it)")
     for path in folder.iterdir():
-        if path.is_file() and path.name not in ("SKILL.md", "README.md", *IGNORED_FILES):
+        if path.is_file() and path.name not in ("SKILL.md", "README.md") and not is_hidden((path.name,)):
             problems.append(f"{rel(folder)}: {path.name} beside SKILL.md; put it in {', '.join(SKILL_DIRS)}/")
     return problems
 
@@ -175,11 +187,18 @@ def check_version_bump(version: str) -> list[str]:
     return []
 
 
+def markdown_files() -> list[Path]:
+    """The repo's .md files, without walking into SKIP_DIRS or following symlinks."""
+    found = []
+    for folder, subfolders, files in os.walk(ROOT):
+        subfolders[:] = [name for name in subfolders if name not in SKIP_DIRS]
+        found += [Path(folder, name) for name in files if name.endswith(".md") and not Path(folder, name).is_symlink()]
+    return sorted(found)
+
+
 def check_em_dashes() -> list[str]:
     problems = []
-    for markdown in sorted(ROOT.rglob("*.md")):
-        if markdown.is_symlink() or SKIP_DIRS.intersection(markdown.relative_to(ROOT).parts):
-            continue
+    for markdown in markdown_files():
         for number, line in enumerate(markdown.read_text(encoding="utf-8").splitlines(), 1):
             if "—" in line:
                 problems.append(f"{rel(markdown)}:{number}: em-dash")

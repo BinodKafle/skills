@@ -14,7 +14,7 @@ it:
 | **Eleven dimensions** | Inputs, intent, blast radius, root cause, breaking it, design, simplicity, standards and supply chain, operations, tests and words, independent verification. |
 | **Executes** | Value-level differential against the base tree, structural crossed corpora with ground truth, properties, and mutation of changed lines. |
 | **Precision** | A finding stands only if a fresh verifier re-runs its trigger and sees the same output. Severity gates the verdict; nits never block. |
-| **Safe on untrusted PRs** | PR text is data, rules come from the base tree, harness files are diffed before anything runs, and head code runs sandboxed without secrets or network. While a review runs, a hook allows only read-only git in your session, and a before-and-after git fingerprint catches anything it can't see. The hook is a guard rail against accidents and injected commands, not a security boundary; subagents are held to it by their instructions. |
+| **Safe on untrusted PRs** | PR text is data, rules come from the base tree, harness files are diffed before anything runs, and head code runs sandboxed without secrets or network. While a review runs, a hook allows only read-only git in your session, and a before-and-after git fingerprint catches local damage it can't see (lost edits, moved branches, changed config). The hook is a guard rail against accidents and injected commands, not a security boundary; subagents are held to it by their instructions. |
 | **Budgeted** | Depth tiers with time boxes, a checkpoint before the expensive part, a cannot-execute path that caps the verdict instead of guessing, and per-unit review for large PRs. |
 | **Learns** | Escaped defects become precedents and replay-eval rows; the method changes, not a growing checklist. |
 
@@ -29,8 +29,8 @@ it:
 ## What it runs, reads and sends
 
 - **The git guard** (`scripts/guard-git.sh`) runs before each Bash command once the skill has been used in a
-  session. It reads only the hook's input and checks for the marker file; it runs `git rev-parse` and `find`, and
-  sends nothing anywhere.
+  session. It reads only the hook's input and checks for the marker file; it runs only `find`, and sends nothing
+  anywhere.
 - **The review** runs your project's own tests, linters and build commands, and the code under review, on your
   machine (in the Claude Code sandbox if you enable it). It writes test files, the ledger under
   `.claude/review/`, and scratch files outside the repo.
@@ -121,11 +121,11 @@ header "id", observed "id" preceded by a byte-order mark · introduced · reprod
 
 | Problem | Fix |
 |---|---|
-| Git commands fail with "A review is running, so only read-only git is allowed", but no review is running | A review stopped without cleaning up. Delete the marker the message names (`rm "$(git rev-parse --show-toplevel)/.claude/review/.active"`). It also expires after 4 hours. |
+| Git commands fail with "A review is running, so only read-only git is allowed", but no review is running | A review stopped without cleaning up. Delete the marker the message names. It also expires after 4 hours. |
 | A command is blocked during a review although it doesn't change git state | The hook matches command text, so a command that mentions, say, `git reset` in a string is blocked too. Rephrase it, or wait for the review to end. |
 | "not on the read-only allowlist" for a git alias or an unusual subcommand | During a review, only the read-only git listed in `scripts/guard-git.sh` runs. Use the plain command (for example `git log` instead of an alias), or wait for the review to end. |
-| Git is still blocked after a review, and the report says it couldn't delete the marker | In auto mode, the permission classifier can refuse the delete as tampering. Run the command the report gives, or `! rm "$(git rev-parse --show-toplevel)/.claude/review/.active"` in the prompt. |
-| Git is still blocked after a review in a subfolder of the repo | The marker lives at the repository root: `rm "$(git rev-parse --show-toplevel)/.claude/review/.active"`. |
+| Git is still blocked after a review, and the report says it couldn't delete the marker | In auto mode, the permission classifier can refuse the delete as tampering. Run the command the report gives, or `! rm <marker path>` in the prompt, with the path the message names. |
+| Git is still blocked after a review in a subfolder of the repo | The marker lives at the repository root, or the superproject's root inside a submodule. Delete the path the message names. |
 | `--background` ran inline, or you can't see the agent | Background subagents depend on your Claude Code version. Check `/tasks`. The skill asks before falling back to inline. |
 | Commands fail with a sandbox error | You enabled `failIfUnavailable` and the sandbox can't start. Fix the sandbox, or accept a review capped at NOT YET (cannot execute). Don't turn the sandbox off for untrusted PRs. |
 | D0 fails to fetch reviews | The forge CLI (for GitHub, `gh`) is missing or not logged in. Run `gh auth status`. A failed fetch on a real PR blocks the verdict; a local branch has no reviews to fetch. |
@@ -139,7 +139,8 @@ don't run it on a working copy you care about.
 
 The guard was tested with Claude Code 2.1.301, as a plugin and as a skill copied into `~/.claude/skills`. It finds
 its script through `$CLAUDE_PLUGIN_ROOT`, which frontmatter hooks set to the plugin root or to the skill's own
-folder. If that ever changes, the hook blocks all git while a review marker exists, instead of failing open.
+folder. If that ever changes, the hook blocks every command that mentions git while a review marker exists, instead of
+failing open.
 
 ## Measuring it
 

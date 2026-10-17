@@ -220,12 +220,13 @@
 0	ls .git
 0	which git
 0	grep -rn git src
-0	rm -f .claude/review/.active
-0	mkdir -p .claude/review && touch .claude/review/.active
+0	root=$(git rev-parse --show-superproject-working-tree --show-toplevel | head -1) && [ -n "$root" ] && mkdir -p "$root/.claude/review" && touch "$root/.claude/review/.active" && echo "$root/.claude/review/.active"
+0	touch /repo/.claude/review/.active
+0	rm -f /repo/.claude/review/.active
 0	pytest -x tests/test_parser.py
 0	gitk
 0	git-lfs version
 # The git fingerprint from SKILL.md, and symbolic-ref read forms.
-0	git rev-parse HEAD; git symbolic-ref -q HEAD; git for-each-ref refs/heads refs/tags; git stash list | wc -l; git diff --cached --quiet; echo $?
+0	git rev-parse HEAD; git symbolic-ref -q HEAD; git for-each-ref refs/heads | cksum; git stash list | wc -l; git worktree list | cksum; git config --local --list | cksum; git diff HEAD | cksum; git status --porcelain -uall
 0	git symbolic-ref --short HEAD
 2	git symbolic-ref -d HEAD
