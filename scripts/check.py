@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Check that the repo's skills, manifests, READMEs and changelog agree. Exits 1 on any problem."""
 
+from __future__ import annotations
 from pathlib import Path
 import json
 import os
@@ -46,7 +47,7 @@ def frontmatter(text: str) -> dict[str, str] | None:
 
 
 def semver(version: str) -> tuple[int, ...] | None:
-    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", version or "")
+    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", version if isinstance(version, str) else "")
     return tuple(int(part) for part in match.groups()) if match else None
 
 
@@ -133,7 +134,7 @@ def check_skills(readme: str, shipped: set[str]) -> tuple[list[str], int, int]:
 
 def check_manifests(plugin: dict, marketplace: dict) -> list[str]:
     problems = []
-    entries = [entry for entry in marketplace.get("plugins", []) if entry.get("name") == plugin.get("name")]
+    entries = [entry for entry in marketplace.get("plugins") or [] if entry.get("name") == plugin.get("name")]
     if not entries:
         problems.append(f"marketplace.json: no plugin entry named {plugin.get('name')!r}")
     for entry in entries:
