@@ -55,7 +55,8 @@ If the Agent tool can't run a subagent in the background here, say so and ask wh
 skill's hook (`scripts/guard-git.sh`) blocks every git command that isn't read-only. It allows status, diff, log,
 show, blame, grep, rev-parse, merge-base, ls-files, cat-file, `git archive` (for read-only extracts), `git fetch`
 into `FETCH_HEAD` or `refs/remotes/`, and the list forms of branch, tag, stash, worktree, remote and config.
-Everything else is blocked, including aliases and `-c` overrides. The hook stays registered for the rest of the
+Everything else is blocked, including aliases, `-c` overrides, `GIT_*` environment variables (except
+`GIT_PAGER=cat`, `GIT_TERMINAL_PROMPT=0` and `GIT_OPTIONAL_LOCKS=0`) and fetch flags beyond the basic ones. The hook stays registered for the rest of the
 session, so the marker is what switches it on and off. It matches the command text, so a command that only
 mentions a blocked git command in a string is blocked too; rephrase it.
 - Create it first, at the repository root (a relative path lands in the wrong place if the shell has moved into a

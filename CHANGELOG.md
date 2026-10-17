@@ -8,6 +8,8 @@
     when a read action comes first, and `--output` (or `git archive -o`) is blocked because it writes files.
     It also sees git after a backslash line continuation, a leading redirection (`2>/dev/null git ...`), or a
     wrapper with arguments (`xargs -n 1 git`, `nice -n 10 git`), and it doesn't skip quoted strings past a cap.
+    `git fetch` allows only basic flags, `git remote -v` and `git reflog` allow only their read forms, `GIT_*`
+    variables are blocked like `-c`, and branch or tag display flags with a name no longer pass as a listing.
   - Fixed: the 1.1.1 guard let through `add`, `apply`, `tag`, `read-tree`, `checkout-index`, `notes`, `config`,
     `gc`, `stash branch`, `bisect`, `submodule update`, `sparse-checkout`, `symbolic-ref`, `update-index` and
     forced fetches. It could also be bypassed with `--git-dir <dir>` or a quoted `-C` path.

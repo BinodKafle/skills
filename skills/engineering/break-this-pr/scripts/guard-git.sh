@@ -122,6 +122,14 @@ verdict=$(printf '%s' "$command_text" | awk '
   # The command name, lowercased because macOS runs `GIT` as git.
   function name(t,   n) { n = split(t, parts, "/"); return tolower(parts[n]) }
   function is_assignment(t) { return t ~ /^[A-Za-z_][A-Za-z0-9_]*=/ }
+  # Like `-c`, GIT_* variables can set config or run commands (GIT_CONFIG_COUNT, GIT_SSH_COMMAND, GIT_DIR).
+  function check_git_env(from, to,   j) {
+    for (j = from; j <= to; j++) {
+      if (tok[j] ~ /^GIT_[A-Za-z0-9_]*=/ && !has("GIT_PAGER=cat GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0", tok[j])) {
+        deny("blocked `" substr(tok[j], 1, index(tok[j], "=")) "`: git environment variables can change config or run commands")
+      }
+    }
+  }
 
   # Finds git in command position: the first word after assignments and keywords, or after find -exec. When the
   # first word is a wrapper, its flags may take arguments (xargs -n 1, nice -n 10), so the first git after it counts.
@@ -133,7 +141,8 @@ verdict=$(printf '%s' "$command_text" | awk '
       if (i <= ntok && has("command exec nohup time nice sudo doas xargs env timeout stdbuf noglob nocorrect", name(tok[i]))) {
         for (; i <= ntok && name(tok[i]) != "git"; i++) if (name(tok[i]) == "xargs") xargs = 1
       }
-      if (i <= ntok && name(tok[i]) == "git") check_git(i + 1, xargs)
+      if (i <= ntok && name(tok[i]) == "git") { check_git_env(start, i - 1); check_git(i + 1, xargs) }
+      if (i <= ntok && name(tok[i]) == "export") check_git_env(i + 1, ntok)
       for (start = i + 1; start <= ntok && tok[start - 1] !~ /^-(exec|execdir|ok|okdir)$/; start++);
     }
   }
@@ -163,7 +172,11 @@ verdict=$(printf '%s' "$command_text" | awk '
     if (subcmd == "notes" && has("list show", a)) return
     if (subcmd == "submodule" && has("status summary", a)) return
     if (subcmd == "sparse-checkout" && a == "list") return
-    if (subcmd == "remote" && (a == "" || has("-v --verbose show get-url", a))) return
+    if (subcmd == "remote") {
+      for (j = i + 1; j <= ntok && has("-v --verbose", tok[j]); j++);
+      if (j > ntok || has("show get-url", tok[j])) return
+      deny("blocked `git remote " tok[j] "`: it may change remotes"); return
+    }
     if (subcmd == "symbolic-ref") {
       nonflag = 0
       for (j = i + 1; j <= ntok; j++) {
@@ -173,7 +186,8 @@ verdict=$(printf '%s' "$command_text" | awk '
       if (nonflag > 1) deny("blocked `git symbolic-ref` with a target: it would move a ref")
       return
     }
-    if (subcmd == "reflog" && !has("expire delete drop", a)) return
+    # Git reads a leading flag as `reflog show` with that flag.
+    if (subcmd == "reflog" && (a == "" || a ~ /^-/ || has("show list exists", a))) return
     # The read action must come first, after scope flags. Git refuses a second action, so a write later fails.
     if (subcmd == "config") {
       for (j = i + 1; j <= ntok && (has("--global --system --local --worktree --show-origin --show-scope --null -z --name-only --includes --no-includes", tok[j]) || tok[j] ~ /^--type=/); j++);
@@ -185,9 +199,11 @@ verdict=$(printf '%s' "$command_text" | awk '
       for (j = i + 1; j <= ntok; j++) {
         t = tok[j]
         if (t !~ /^-/) { nonflag++; continue }
-        if (has("-l --list --contains --no-contains --merged --no-merged --points-at", t)) { listish = 1; continue }
-        if (has("-a --all -r --remotes -v -vv --verbose --show-current -i --ignore-case --no-column --no-color --no-abbrev --verify", t)) continue
-        if (t ~ /^--(sort|format|column|color|abbrev|contains|no-contains|merged|no-merged|points-at)=/ || t ~ /^-n[0-9]*$/) { listish = 1; continue }
+        # Only these switch to list mode. With a name, the display flags below still create the ref.
+        if (has("-l --list --contains --no-contains --merged --no-merged --points-at", t) || t ~ /^--(contains|no-contains|merged|no-merged|points-at)=/ ||
+            (subcmd == "tag" && (t ~ /^-n[0-9]*$/ || has("-v --verify", t)))) { listish = 1; continue }
+        if (has("-a --all -r --remotes -v -vv --verbose --show-current -i --ignore-case --column --no-column --no-color --no-abbrev", t) ||
+            t ~ /^--(sort|format|column|color|abbrev)=/) continue
         deny("blocked `git " subcmd " " t "`: it may change refs"); return
       }
       if (nonflag && !listish) deny("blocked `git " subcmd " " tok[i + 1] "`: it would create a " subcmd)
@@ -197,10 +213,14 @@ verdict=$(printf '%s' "$command_text" | awk '
       nonflag = 0
       for (j = i + 1; j <= ntok; j++) {
         t = tok[j]
-        if (has("-f --force -u --update-head-ok", t) || t ~ /^--(refmap|upload-pack)/) { deny("blocked `git fetch " t "`: it can overwrite local refs"); return }
-        if (t ~ /^-/) continue
+        # Other flags can move local refs (--stdin, --refmap), delete tags (-P), or rewrite config (--set-upstream).
+        if (t ~ /^-/) {
+          if (has("-q --quiet -v --verbose -n --no-tags -p --prune --all --dry-run --progress --no-progress --no-write-fetch-head --no-recurse-submodules", t)) continue
+          deny("blocked `git fetch " t "`: not on the read-only flag list"); return
+        }
         nonflag++
         if (nonflag == 1) continue
+        if (t == "tag") { deny("blocked `git fetch <remote> tag`: it creates a local tag"); return }
         if (t ~ /^\+/) { deny("blocked `git fetch " t "`: a forced refspec overwrites refs"); return }
         if (index(t, ":")) {
           dst = substr(t, index(t, ":") + 1)

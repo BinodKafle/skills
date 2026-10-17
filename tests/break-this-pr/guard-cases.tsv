@@ -27,6 +27,28 @@
 2	git fetch origin pr:main
 2	git fetch -f origin x
 2	git fetch --update-head-ok origin
+2	git fetch --stdin origin
+2	git fetch -p -P origin
+2	git fetch --depth=1 origin
+2	git fetch --set-upstream origin main
+2	git fetch -ft origin
+2	git fetch --tags origin
+2	git fetch origin tag v1
+2	git remote -v set-url origin https://example.com/r.git
+2	git remote --verbose add x y
+2	git remote rename origin x
+2	git reflog write refs/heads/main a b msg
+2	git reflog delete HEAD@{1}
+2	GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=remote.origin.fetch GIT_CONFIG_VALUE_0=+refs/heads/f:refs/heads/f git fetch origin
+2	GIT_CONFIG_PARAMETERS="'core.fsmonitor=./x.sh'" git status
+2	GIT_SSH_COMMAND=./x.sh git fetch origin
+2	env GIT_EXTERNAL_DIFF=./x.sh git diff
+2	export GIT_CONFIG_GLOBAL=./evil; git status
+2	git branch --sort=-committerdate feature
+2	git branch --color=never x
+2	git branch -v x
+2	git branch --format='%(refname)' x
+2	git tag --sort=refname v9.9.9
 2	git notes add -m x
 2	git config user.name x
 2	git config --unset user.name
@@ -132,6 +154,20 @@
 0	git check-ignore -q .claude/review/.active
 0	git archive abc | tar -x -C /tmp/base
 0	git fetch origin
+0	git fetch -q --no-tags origin
+0	git fetch --prune --dry-run origin
+0	git remote -v show origin
+0	git reflog -n 5
+0	git reflog exists HEAD
+0	GIT_PAGER=cat git log
+0	GIT_TERMINAL_PROMPT=0 git fetch origin
+0	export PATH=/usr/bin; git status
+0	git branch -v
+0	git branch --sort=-committerdate
+0	git branch --format='%(refname)' --list
+0	git tag -v v1.2.0
+0	git tag -n v1.2.0
+0	git tag --sort=-v:refname
 0	git fetch origin pull/1/head
 0	git fetch origin pull/1/head:refs/remotes/pr/1
 0	git fetch --all --prune
