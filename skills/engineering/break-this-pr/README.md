@@ -1,86 +1,63 @@
 # break-this-pr
 
-An adversarial, senior-engineer PR review skill for Claude Code. It doesn't comment on a diff; it tries to break
-it:
-- it verifies every claim by running something;
-- it attacks every changed line with real-world edge-case data;
-- it returns a merge verdict that is only issued when every review dimension has evidence behind it.
+Adversarial senior-engineer PR review for Claude Code. It doesn't comment on a diff; it tries to break it, and
+gives a merge verdict only when every dimension has evidence.
 
 ## What it does
 
 | | |
 |---|---|
-| **Zero trust** | The PR description, comments, docstrings, test names and other reviewers' findings are claims to verify, not evidence. |
-| **Eleven dimensions** | Inputs, intent, blast radius, root cause, breaking it, design, simplicity, standards and supply chain, operations, tests and words, independent verification. |
-| **Executes** | Value-level differential against the base tree, structural crossed corpora with ground truth, properties, and mutation of changed lines. |
-| **Precision** | A finding stands only if a fresh verifier re-runs its trigger and sees the same output. Severity gates the verdict; nits never block. |
-| **Safe on untrusted PRs** | PR text is data, rules come from the base tree, harness files are diffed before anything runs, and head code runs sandboxed without secrets or network. While a review runs, a hook allows only read-only git in your session, and a before-and-after git fingerprint catches local damage it can't see (lost edits, moved branches, changed config). The hook is a guard rail against accidents and injected commands, not a security boundary; subagents are held to it by their instructions. |
-| **Budgeted** | Depth tiers with time boxes, a checkpoint before the expensive part, a cannot-execute path that caps the verdict instead of guessing, and per-unit review for large PRs. |
-| **Learns** | Escaped defects become precedents and replay-eval rows; the method changes, not a growing checklist. |
+| **Zero trust** | PR text, comments, docstrings, test names and other reviews are claims to verify. |
+| **Eleven dimensions** | Inputs, intent, blast radius, root cause, breaking it, design, simplicity, standards and supply chain, operations, tests and words, verification. |
+| **Executes** | Value-level differential against the base, crossed corpora with ground truth, properties, mutation of changed lines. |
+| **Precision** | A finding stands only if a fresh verifier reproduces it. Nits never block. |
+| **Safe on untrusted PRs** | Rules come from the base tree, harness files are diffed first, head code runs sandboxed without secrets or network. A hook allows only read-only git during a review, and a git fingerprint catches what it misses. The hook is a guard rail, not a security boundary; subagents follow it by instruction only. |
+| **Budgeted** | Depth tiers with time boxes, a checkpoint before the expensive part, and a capped verdict when code can't run. |
+| **Learns** | Escaped defects change the method, not a checklist. |
 
-## What it doesn't do
+It doesn't fix code, and doesn't post to your forge unless you pass `--post` and approve the text. A Deep review
+can take two hours; use it when correctness matters. Its verifiers share one model family.
 
-- It doesn't fix code. Fixes happen in the main session and are then reviewed again.
-- It doesn't post to your forge unless you pass `--post`, and then only after you've read and approved the text.
-- It isn't cheap. A Deep review can take up to two hours of agent time. Use your forge's lightweight reviewer for
-  routine PRs, and this one when correctness matters.
-- Its verifiers share one model family. They reduce self-confirmation; they don't remove it.
+## What it runs and sends
 
-## What it runs, reads and sends
+- **Git guard** (`scripts/guard-git.sh`): runs before each Bash command once the skill is used. Reads the hook
+  input, runs only `find`, sends nothing.
+- **The review:** runs your tests, linters, builds and the code under review locally (sandboxed if enabled). Writes
+  tests, a ledger under `.claude/review/`, and scratch files outside the repo.
+- **Forge CLI** (`gh`): fetches the PR and its comments; with `--post`, posts one approved comment.
+- **Official docs** for libraries the change uses.
 
-- **The git guard** (`scripts/guard-git.sh`) runs before each Bash command once the skill has been used in a
-  session. It reads only the hook's input and checks for the marker file; it runs only `find`, and sends nothing
-  anywhere.
-- **The review** runs your project's own tests, linters and build commands, and the code under review, on your
-  machine (in the Claude Code sandbox if you enable it). It writes test files, the ledger under
-  `.claude/review/`, and scratch files outside the repo.
-- **Your forge's CLI** (for GitHub, `gh`) fetches the PR, its reviews and comments. With `--post`, and only after
-  you approve the text, it posts one comment to the PR.
-- **Official docs** for the libraries the change uses may be fetched, to check API usage.
-
-Nothing else is sent anywhere. The skill reads no credentials itself; the forge CLI uses its own login.
+It reads no credentials; the forge CLI uses its own login.
 
 ## Install
 
-Install the `binodkafle-skills` plugin (see the [repo README](../../../README.md)) and run
-`/binodkafle-skills:break-this-pr <target> [flags]`. Or copy this folder to `~/.claude/skills/break-this-pr/` and
-run `/break-this-pr`.
+Install the plugin (see the [repo README](../../../README.md)) and run `/binodkafle-skills:break-this-pr`, or copy
+this folder to `~/.claude/skills/` and run `/break-this-pr`. It runs only when you invoke it.
 
-The skill never runs on its own (`disable-model-invocation`). It runs inline, so you see every step, unless you
-pass `--background`.
-
-**Before reviewing code you didn't write,** enable the Claude Code sandbox with `failIfUnavailable`. See
-[references/safety.md](./references/safety.md).
+**Before reviewing code you didn't write,** enable the Claude Code sandbox with `failIfUnavailable`
+([references/safety.md](./references/safety.md)).
 
 ## Usage
 
 | Argument | Meaning |
 |---|---|
-| `<target>` | A PR number, ticket, branch or paths. Omit it to review the current branch against its base. |
-| `--depth light\|standard\|deep` | Override the depth the skill picks. Lighter than it would pick caps the verdict at NOT YET. |
-| `--background` | Run in a background subagent, with no checkpoint. Follow it with `/tasks`; the full report prints when it's done. Hooks don't run inside subagents, so the subagent is held back from state-changing git by its instructions only. |
-| `--yes` | Skip the checkpoint (after D0 and triage; after D0 alone at Light). |
-| `--post` | After the report, draft a PR comment, show it, and post it only if you say yes. It never posts from a background run or for an external-contributor PR; the draft goes at the end of the report instead. |
+| `<target>` | PR number, ticket, branch or paths. Default: the current branch against its base. |
+| `--depth light\|standard\|deep` | Override the depth. Lighter than the skill's choice caps the verdict at NOT YET. |
+| `--background` | Run in a background subagent, no checkpoint. Follow with `/tasks`. |
+| `--yes` | Skip the checkpoint. |
+| `--post` | Draft a PR comment and post it only on your yes. Never from a background run or for an external contributor. |
 
 ```text
 /binodkafle-skills:break-this-pr 1234
 /binodkafle-skills:break-this-pr feature/csv-import --depth deep
 /binodkafle-skills:break-this-pr 1234 --background --yes
-/binodkafle-skills:break-this-pr src/parser.py tests/test_parser.py --depth light
-/binodkafle-skills:break-this-pr 1234 --post
 ```
 
-### What a run looks like
+A run creates the marker `.claude/review/.active` at the repo root (turning on the git guard), prints each phase,
+stops at a checkpoint (proceed / lighter / stop), and ends with the full report from
+[templates/report.md](./templates/report.md), then deletes the marker.
 
-1. It creates `.claude/review/.active` at the repository root (the marker that switches on the git guard) and
-   prints one line per phase. With the task tools enabled, each dimension is a task you can watch.
-2. After D0 and triage (D0 alone at Light) it stops at a checkpoint with the depth, time box, plan and estimated
-   cost, and asks proceed / lighter / stop. `--yes` and `--background` skip it.
-3. It runs the rest of the dimensions its depth calls for, writing failing tests and the ledger as it goes.
-4. Its final message is the full report from [templates/report.md](./templates/report.md), and it deletes the
-   marker.
-
-### Example report (anonymised, shortened here; real reports have every row and section)
+### Example report (shortened)
 
 ```markdown
 ## 1. Verdict
@@ -88,75 +65,39 @@ pass `--background`.
 - Deciding gate: major F1, introduced by this change.
 - Residual risk: D8 performance measured at 50k rows only; production files reach 2M.
 
-## 2. Depth, scope and what isn't covered
-| Depth and why | Deep: changes CSV parsing |
-| Not covered | The export path (unchanged, no readers of the new field) |
-
-## 3. Dimensions
-| D4 Break it | finding | crossed corpus, 3 axes of 4 values = 64 cells → 2 regressions | |
-| D6 Simplicity | pass | no dead branches; flag has two readers (rg output) | |
-
 ## 4. Findings
 F1 · major · src/parser.py:88 · `pytest tests/test_parser.py::test_bom_header -x` · expected
 header "id", observed "id" preceded by a byte-order mark · introduced · reproduced by verifier (haiku)
 ```
 
-## Set up a repo (optional but recommended)
+## Repo setup (recommended)
 
-1. Copy [templates/review-profile.md](./templates/review-profile.md) to `.claude/review-profile.md` in your repo,
-   and fill in your commands, runner flags, result-changing environment settings and domain traps. Without a
-   profile, the skill derives one from your `CLAUDE.md` / `AGENTS.md`, CI and build files, and says what it
-   derived.
-2. Add these to `.gitignore` (the skill warns if they're missing):
+1. Copy [templates/review-profile.md](./templates/review-profile.md) to `.claude/review-profile.md` and fill it in.
+   Without it, the skill derives one from `CLAUDE.md`, `AGENTS.md`, CI and build files.
+2. Gitignore the review files (the skill warns otherwise):
 
    ```gitignore
    .claude/review/ledgers/
    .claude/review/.active
    ```
 
-3. When a defect escapes a review, log it in `.claude/review/precedents.md`, and add a replay row to
-   `.claude/review/evals.md` (formats in `templates/`). Commit these two.
+3. Log escaped defects in `.claude/review/precedents.md` and `.claude/review/evals.md` (formats in `templates/`),
+   and commit both.
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---|---|
-| Git commands fail with "A review is running, so only read-only git is allowed", but no review is running | A review stopped without cleaning up. Delete the marker the message names. It also expires after 4 hours. |
-| A command is blocked during a review although it doesn't change git state | The hook matches command text, so a command that mentions, say, `git reset` in a string is blocked too. Rephrase it, or wait for the review to end. |
-| "not on the read-only allowlist" for a git alias or an unusual subcommand | During a review, only the read-only git listed in `scripts/guard-git.sh` runs. Use the plain command (for example `git log` instead of an alias), or wait for the review to end. |
-| Git is still blocked after a review, and the report says it couldn't delete the marker | In auto mode, the permission classifier can refuse the delete as tampering. Run the command the report gives, or `! rm <marker path>` in the prompt, with the path the message names. |
-| Git is still blocked after a review in a subfolder of the repo | The marker lives at the repository root, or the superproject's root inside a submodule. Delete the path the message names. |
-| `--background` ran inline, or you can't see the agent | Background subagents depend on your Claude Code version. Check `/tasks`. The skill asks before falling back to inline. |
-| Commands fail with a sandbox error | You enabled `failIfUnavailable` and the sandbox can't start. Fix the sandbox, or accept a review capped at NOT YET (cannot execute). Don't turn the sandbox off for untrusted PRs. |
-| D0 fails to fetch reviews | The forge CLI (for GitHub, `gh`) is missing or not logged in. Run `gh auth status`. A failed fetch on a real PR blocks the verdict; a local branch has no reviews to fetch. |
-| The checkpoint question doesn't appear in a headless run | Headless runs can't answer questions. Pass `--yes`. |
+| Git is blocked but no review is running | Delete the marker the message names. It expires after 4 hours. |
+| A command that doesn't change git state is blocked | The hook matches text, so `git reset` inside a string is blocked. Rephrase it. |
+| An alias or unusual subcommand is blocked | Only the read-only git in `scripts/guard-git.sh` runs during a review. Use the plain command. |
+| The report says it couldn't delete the marker | Auto mode can refuse the delete. Run `! rm <marker path>`. |
+| Sandbox errors | Fix the sandbox, or accept a NOT YET verdict. Don't disable it for untrusted PRs. |
+| D0 can't fetch reviews | Check `gh auth status`. |
+| No checkpoint in a headless run | Pass `--yes`. |
 
 ## Claude Code only
 
-`argument-hint`, `disable-model-invocation` and the frontmatter `hooks` are Claude Code features, outside the
-Agent Skills spec. Other tools may reject the frontmatter, or load the skill without the git guard; in that case,
-don't run it on a working copy you care about.
-
-The guard was tested with Claude Code 2.1.301, as a plugin and as a skill copied into `~/.claude/skills`. It finds
-its script through `$CLAUDE_PLUGIN_ROOT`, which frontmatter hooks set to the plugin root or to the skill's own
-folder. If that ever changes, the hook blocks every command that mentions git while a review marker exists, instead of
-failing open.
-
-## Measuring it
-
-`templates/evals.md` describes a replay suite built from your own past misses:
-- each row is a snapshot before a known fix, replayed 3 times without hints;
-- clean PRs act as controls;
-- it tracks recall, precision and cost per skill version.
-
-A skill change ships only if none of the three gets worse.
-
-## Layout
-
-```
-break-this-pr/
-├── SKILL.md            arguments, lifecycle, workflow, principles, verdict gates
-├── references/         safety, dimensions, corpus, oracles, mutation, speed, severity
-├── scripts/            guard-git.sh: the hook that allows only read-only git during a review
-└── templates/          report, ledger, review profile, precedents, evals
-```
+`argument-hint`, `disable-model-invocation` and frontmatter `hooks` aren't in the Agent Skills spec. Without the
+git guard, don't run it on a working copy you care about. Tested with Claude Code 2.1.301. If the hook can't find
+its script, it blocks every git command while a marker exists.

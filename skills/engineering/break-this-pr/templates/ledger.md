@@ -61,14 +61,13 @@ status (open / fixed@SHA / rejected: why / stale)`
 |---|---|---|---|
 
 ## Files this review wrote
-`git status --porcelain` plus scratch paths. Only tests, this ledger and scratch files are allowed.
+`git status --porcelain` plus scratch paths.
 
 ## Marker
-The absolute path printed when the marker was created:
+Absolute path:
 
 ## Git fingerprint
-The output of the fingerprint command (SKILL.md) at D0 and before the report. Under it, list every difference and
-whether the files this review wrote explain it.
+Output at D0 and before the report, then each difference and whether this review's files explain it.
 
 ```
 D0:

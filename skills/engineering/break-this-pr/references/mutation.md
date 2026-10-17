@@ -1,29 +1,25 @@
 # Mutation of the changed lines
 
-Mutation answers one question: would the tests notice if the new code were wrong?
+Would the tests notice if the new code were wrong?
 
 ## Tooling
-Prefer the ecosystem's mutation tool in diff-only mode: mutmut or cosmic-ray (Python), Stryker (JS/TS, C#, Scala),
-PIT (Java/Kotlin), go-mutesting or gremlins (Go), cargo-mutants (Rust). Hand-written mutants are the fallback.
+The ecosystem's tool in diff-only mode: mutmut or cosmic-ray (Python), Stryker (JS/TS, C#, Scala), PIT
+(Java/Kotlin), go-mutesting or gremlins (Go), cargo-mutants (Rust). Else hand-written mutants.
 
 ## Rules
-- **Only the changed lines.** Skip lines no test covers (report them as uncovered instead), and skip logging,
-  comments and pure formatting.
-- **Never edit the real file.** Each mutant runs in its own temporary copy of the tree. Several can run in
-  parallel.
-- **Covering tests only, fail fast.** Run only the tests that cover the mutated line, and stop at the first failure:
-  "killed" needs only one failing test. Use the runner flags from the review profile.
-- **Caps:** at most 3 mutants per line and 60 per review. Above the cap, sample uniformly and state the sample.
-- **Bound every run** with a time limit, and count failures over the full output, never a truncated tail.
+- Changed lines only. Report uncovered lines as uncovered; skip logging, comments and formatting.
+- Never edit the real file: each mutant runs in its own temporary copy, in parallel if possible.
+- Run only covering tests and stop at the first failure, with the profile's runner flags.
+- Cap at 3 mutants per line and 60 per review; above that, sample uniformly and say so.
+- Time-limit every run. Count failures over the full output, never a truncated tail.
 
-## Mutation operators
-Flip a comparison (`<` / `<=`, `==` / `!=`), negate a condition, drop a guard, off-by-one on a bound, swap `and` /
-`or`, remove a set or list member, replace a constant (0, 1, an empty value), delete a call with side effects.
+## Operators
+Flip a comparison (`<` / `<=`, `==` / `!=`), negate a condition, drop a guard, shift a bound by one, swap `and` /
+`or`, remove a set or list member, replace a constant (0, 1, empty), delete a call with side effects.
 
-## Each survivor
-A survivor is one of three things:
-1. **A missing test.** Write it; it must fail on the mutant and pass on the head.
-2. **Dead or redundant code.** Report it under D6.
-3. **An equivalent mutant.** Show why (no input can tell them apart) and drop it.
+## Each survivor is
+1. **A missing test:** write it (fails on the mutant, passes on the head).
+2. **Dead code:** report under D6.
+3. **Equivalent:** show no input tells them apart, and drop it.
 
-Score survivors against ground truth (`oracles.md`), not against your own expectation.
+Judge survivors against ground truth (`oracles.md`), not your own expectation.

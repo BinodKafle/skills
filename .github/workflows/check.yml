@@ -12,7 +12,7 @@ jobs:
   check:
     strategy:
       matrix:
-        # GNU and BSD sed, find and awk differ; the guard script must work with both.
+        # The guard must work with both GNU and BSD sed, find and awk.
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:

@@ -1,57 +1,43 @@
 # Working in this repo
 
-Rules for adding or changing a skill. `python3 scripts/check.py` enforces the mechanical ones; run it, and
-`sh tests/break-this-pr/guard-git.test.sh` when you touch the guard, before every commit.
+Before every commit, run `python3 scripts/check.py`, plus `sh tests/break-this-pr/guard-git.test.sh` if you touched
+the guard.
 
 ## Layout
 
-- Each skill is a folder `skills/<bucket>/<skill-name>/` containing `SKILL.md`. The folder name equals the
-  frontmatter `name`.
-- Buckets:
-  - `engineering/` (promoted): daily code work;
-  - `in-progress/`: drafts, not shipped.
-
-  Add a new bucket only when a skill doesn't fit an existing one, and add it to `PROMOTED_BUCKETS` in
+- A skill is `skills/<bucket>/<name>/SKILL.md`; the folder name equals the frontmatter `name`.
+- Buckets: `engineering/` (promoted) and `in-progress/` (drafts). Add a new bucket to `PROMOTED_BUCKETS` in
   `scripts/check.py`.
-- Detail that isn't needed on every run goes in files beside `SKILL.md` (`references/`, `templates/`, and
-  `scripts/` for code the skill runs), each named in `SKILL.md` with a line saying when to read or run it. Keep
-  `SKILL.md` under 500 lines.
-- Tests for a skill's scripts live in `tests/<skill-name>/`, outside the skill folder, so they don't ship.
-- A skill may have a human-facing `README.md` in its folder (what it does, setup, cost). It isn't loaded by the
-  agent.
+- Detail not needed on every run goes in `references/`, `templates/` or `scripts/` beside `SKILL.md`, which names
+  each file and when to use it. Keep `SKILL.md` under 500 lines.
+- Script tests go in `tests/<name>/`, so they don't ship.
+- A skill's own `README.md` is for humans; the agent doesn't load it.
 
-## Shipping a skill
+## Shipping
 
-A skill in a promoted bucket must be:
-- listed in `.claude-plugin/plugin.json`'s `skills` array;
-- listed in the top-level `README.md` and in its bucket's `README.md`, with its name linked to its `SKILL.md`;
-- labelled user-invoked or model-invoked in both READMEs.
-
-Skills in `in-progress/` must not be in `plugin.json`, the top-level `README.md` or a promoted bucket's
-`README.md`. They may be listed in `skills/in-progress/README.md`.
+A promoted skill is in `plugin.json`'s `skills`, and is linked (to its `SKILL.md`) and labelled user- or
+model-invoked in both the top-level and bucket READMEs. Drafts stay out of all three.
 
 ## Invocation
 
-- **User-invoked:** set `disable-model-invocation: true`. Use it for anything expensive, side-effectful, or that
-  should never fire on a casual request. The description is a one-line summary for a human browsing commands.
-- **Model-invoked:** omit it. The description says when to use the skill, because the model reads it to decide.
+- **User-invoked:** `disable-model-invocation: true`, for anything expensive or side-effectful. The description is
+  a one-line summary for humans.
+- **Model-invoked:** omit it. The description says when to use the skill, since the model decides from it.
 
 ## Published skills are generic
 
-No repo paths, PR numbers, team names or project-specific commands in a published skill. Anything a specific repo
-needs belongs in that repo (for example, its own review profile), and the skill tells the user how to set it up.
+No repo paths, PR numbers, team names or project-specific commands. The skill tells users how to set up
+repo-specific config, such as a review profile.
 
 ## Releasing
 
-- Bump `version` in `.claude-plugin/plugin.json` for every change that ships (semver: breaking / feature / fix),
-  in the same commit as the change. "Ships" means anything under a promoted bucket or `.claude-plugin/`.
-- Add a `CHANGELOG.md` entry whose heading is the new version.
-- `check.py` compares against the last `v*` tag. The release workflow creates that tag (and a GitHub release)
-  when a new version reaches `main`; don't tag by hand.
-- Run `claude plugin validate . --strict` after touching either manifest. It must pass with no warnings, which is
-  why this file lives in `.claude/` and not at the plugin root.
+- A change under a promoted bucket or `.claude-plugin/` bumps `version` in `plugin.json` (semver) in the same
+  commit, with a matching `CHANGELOG.md` heading.
+- The release workflow tags `v*` when a new version reaches `main`; `check.py` compares against that tag. Don't tag
+  by hand.
+- After touching a manifest, `claude plugin validate . --strict` must pass with no warnings. That's why this file
+  is in `.claude/`.
 
 ## Style
 
-- No em-dashes in prose; rewrite the sentence instead.
-- Plain words, short sentences; a rule says why when the reason isn't obvious.
+No em-dashes. Plain words, short sentences; give a rule's reason when it isn't obvious.

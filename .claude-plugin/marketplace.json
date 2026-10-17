@@ -4,7 +4,7 @@
     "name": "Binod Kafle",
     "url": "https://github.com/BinodKafle"
   },
-  "description": "Binod Kafle's skills for software engineers, as an installable Claude Code plugin.",
+  "description": "Binod Kafle's software-engineering skills as a Claude Code plugin.",
   "plugins": [
     {
       "name": "binodkafle-skills",

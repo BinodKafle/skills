@@ -1,16 +1,11 @@
 #!/bin/sh
-# PreToolUse guard for break-this-pr. Reads the hook's JSON on stdin. While a review marker exists, it blocks
-# every git command that isn't on a read-only allowlist (exit 2, reason on stderr). With no marker it allows
-# everything (exit 0).
-#
-# It matches command text, so it is a guard rail against accidents and injected commands, not a security
-# boundary: git reached through a variable (`$g reset`), `eval`, or a script or another language is not seen.
-# Needs only sh, awk and find.
+# PreToolUse hook: while a fresh review marker exists, blocks git not on the read-only allowlist (exit 2).
+# Matches command text only, so git via a variable, `eval` or a script slips through: a guard rail, not a boundary.
 
 MAX_AGE_MINUTES=240
 input=$(cat)
 
-# Prints the first JSON string value for a key, unescaped. Exits 1 if the key isn't there.
+# Prints the first JSON string value for key $1, unescaped. Exits 1 if the key is missing.
 json_string() {
   printf '%s' "$input" | awk -v key="$1" '
     function hexval(h,   i, c, v) {
@@ -25,8 +20,7 @@ json_string() {
     BEGIN { RS = "\001" }
     {
       if (!match($0, "\"" key "\"[ \t\r\n]*:[ \t\r\n]*\"")) exit 1
-      # Prints as it goes, since building a long string a character at a time is slow. On exit 1 (no closing
-      # quote) the caller discards the output.
+      # Print as we go (string building is slow); on exit 1 the caller discards the output.
       n = split(substr($0, RSTART + RLENGTH), ch, "")
       for (i = 1; i <= n; i++) {
         c = ch[i]
@@ -49,9 +43,7 @@ json_string() {
 
 cwd=$(json_string cwd) || cwd=$PWD
 
-# The marker sits at the repository root, or the superproject's root inside a submodule. Both are above the
-# project dir and the shell's cwd, so look in each of those and every folder above it. Only the builtin -e runs
-# when there's no marker, which is the common case.
+# The marker is at the repo (or superproject) root, so walk up from the project dir and cwd.
 marker=
 for dir in "${CLAUDE_PROJECT_DIR:-}" "$cwd"; do
   while [ -n "$dir" ] && [ -z "$marker" ]; do
@@ -64,9 +56,9 @@ done
 [ -n "$marker" ] || exit 0
 
 block() {
-  echo "break-this-pr: $1. A review is running, so only read-only git is allowed (such as status, diff, log, show," \
-    "blame, grep, rev-parse, archive, fetch into FETCH_HEAD or refs/remotes/, and list forms; the full list is in" \
-    "guard-git.sh). Rephrase the command, or if no review is running, delete $marker" >&2
+  echo "break-this-pr: $1. A review is running; only read-only git is allowed (status, diff, log, show, blame, grep," \
+    "rev-parse, archive, fetch into FETCH_HEAD or refs/remotes/, list forms; full list in guard-git.sh)." \
+    "Rephrase, or if no review is running, delete $marker" >&2
   exit 2
 }
 
@@ -75,20 +67,19 @@ command_text=$(json_string command) || block "couldn't read the command from the
 verdict=$(printf '%s' "$command_text" | awk '
   BEGIN { RS = "\001" }
 
-  # A redirection target (`> file`) is dropped, so the word after it is still seen as the command.
+  # Drop redirection targets so the next word is still the command.
   function flush_token() {
     if (in_token) { if (redirect) redirect = 0; else { ntok++; tok[ntok] = cur } }
     cur = ""; in_token = 0
   }
   function end_segment() { flush_token(); redirect = 0; check_segment(); ntok = 0 }
-  # Past the cap, a command that mentions git is blocked rather than left partly unchecked.
+  # Past the cap, block anything mentioning git.
   function queue_nested(s) {
     if (nq < 200) { nq++; queue[nq] = s }
     else if (mentions_git) deny("blocked: too many quoted strings to check")
   }
 
-  # Splits a command line into segments of tokens, queueing the inside of quoted strings to be checked as
-  # commands too (`sh -c "git reset"`).
+  # Splits into token segments; quoted strings are queued as commands too (`sh -c "git reset"`).
   function scan(s,   i, c, n, q, ch) {
     ntok = 0; cur = ""; in_token = 0; n = split(s, ch, "")
     for (i = 1; i <= n; i++) {
@@ -139,8 +130,7 @@ verdict=$(printf '%s' "$command_text" | awk '
     }
   }
 
-  # Finds git in command position: the first word after assignments and keywords, or after find -exec. When the
-  # first word is a wrapper, its flags may take arguments (xargs -n 1, nice -n 10), so the first git after it counts.
+  # Finds git in command position, after assignments, keywords, find -exec, or a wrapper (xargs -n 1 git).
   function check_segment(   i, start, xargs) {
     start = 1
     while (start <= ntok) {
@@ -169,7 +159,7 @@ verdict=$(printf '%s' "$command_text" | awk '
     }
     if (i > ntok) { if (xargs) deny("blocked `xargs git`: the subcommand would come from input"); return }
     subcmd = tok[i]
-    # --output (and archive -o) makes a read-only command write any file, including .git/HEAD, refs and config.
+    # --output and archive -o write arbitrary files.
     for (j = i + 1; j <= ntok; j++) {
       if (tok[j] ~ /^--output(=|$)/ || (subcmd == "archive" && tok[j] ~ /^-[^-]*o/)) { deny("blocked `git " subcmd " " tok[j] "`: it writes a file"); return }
     }
@@ -194,9 +184,9 @@ verdict=$(printf '%s' "$command_text" | awk '
       if (nonflag > 1) deny("blocked `git symbolic-ref` with a target: it would move a ref")
       return
     }
-    # Git reads a leading flag as `reflog show` with that flag.
+    # A leading flag means `reflog show <flag>`.
     if (subcmd == "reflog" && (a == "" || a ~ /^-/ || has("show list exists", a))) return
-    # The read action must come first, after scope flags. Git refuses a second action, so a write later fails.
+    # The read action must come first; git rejects a second action.
     if (subcmd == "config") {
       for (j = i + 1; j <= ntok && (has("--global --system --local --worktree --show-origin --show-scope --null -z --name-only --includes --no-includes", tok[j]) || tok[j] ~ /^--type=/); j++);
       if (j <= ntok && has("--get --get-all --get-regexp --get-urlmatch --list -l get list", tok[j])) return
@@ -207,7 +197,7 @@ verdict=$(printf '%s' "$command_text" | awk '
       for (j = i + 1; j <= ntok; j++) {
         t = tok[j]
         if (t !~ /^-/) { nonflag++; continue }
-        # Only these switch to list mode. With a name, the display flags below still create the ref.
+        # Only these mean list mode; with a name, display flags still create a ref.
         if (has("-l --list --contains --no-contains --merged --no-merged --points-at", t) || t ~ /^--(contains|no-contains|merged|no-merged|points-at)=/ ||
             (subcmd == "tag" && (t ~ /^-n[0-9]*$/ || has("-v --verify", t)))) { listish = 1; continue }
         if (has("-a --all -r --remotes -v -vv --verbose --show-current -i --ignore-case --column --no-column --no-color --no-abbrev", t) ||
@@ -221,7 +211,7 @@ verdict=$(printf '%s' "$command_text" | awk '
       nonflag = 0
       for (j = i + 1; j <= ntok; j++) {
         t = tok[j]
-        # Other flags can move local refs (--stdin, --refmap), delete tags (-P), or rewrite config (--set-upstream).
+        # Other flags can move refs (--refmap), delete tags (-P) or write config (--set-upstream).
         if (t ~ /^-/) {
           if (has("-q --quiet -v --verbose -n --no-tags -p --prune --all --dry-run --progress --no-progress --no-write-fetch-head --no-recurse-submodules", t)) continue
           deny("blocked `git fetch " t "`: not on the read-only flag list"); return

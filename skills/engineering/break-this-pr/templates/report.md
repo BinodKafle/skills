@@ -1,7 +1,7 @@
 # break-this-pr report: <PR or branch>
 
-The final message of a review is this report: all ten sections, in this order, never shortened. A section with
-nothing in it says "none" and why. Copy content from the ledger; don't paraphrase findings or evidence.
+The final message: all ten sections, in order, never shortened. An empty section says "none" and why. Copy
+findings and evidence from the ledger verbatim.
 
 ## 1. Verdict
 **MERGE / NOT YET / DO NOT MERGE**
@@ -37,11 +37,11 @@ nothing in it says "none" and why. Copy content from the ledger; don't paraphras
 | D10 Verification | | | |
 
 ## 4. Findings
-By severity, blockers first, each in the full format:
+Blockers first:
 
     id · severity · file:line · trigger (command) · expected vs observed · introduced / pre-existing · reproduced by
 
-Follow each with the minimal input and the observed output. Rejected findings are in section 7, not here.
+Each with its minimal input and observed output. Rejected findings go in section 7.
 
 ## 5. Tests written
 | Test (file::name) | What it pins | Fails on base | Passes on head |
@@ -55,15 +55,14 @@ Follow each with the minimal input and the observed output. Rejected findings ar
 | Verifier (model) | Confirmed | Rejected (why) | New findings |
 |---|---|---|---|
 
-Note that the verifiers share one model family.
+State that the verifiers share one model family.
 
 ## 8. Files this review wrote
-`git status --porcelain` plus scratch paths. Only tests, the ledger and scratch files are allowed; anything else is
-a finding against this review. State whether the git fingerprint matched D0 (any difference is a finding against
-this review), and confirm the marker was deleted.
+`git status --porcelain` plus scratch paths. Anything beyond tests, the ledger and scratch files, or any git
+fingerprint difference from D0, is a finding against this review. Confirm the marker was deleted.
 
 ## 9. Decisions for the user
 1. (each `UNDEFINED: needs a decision`, a split recommendation, a gitignore line to add, a draft to post)
 
 ## 10. Ledger
-Path to the ledger, and to raw verifier logs if any.
+Ledger path, and raw verifier log paths.

@@ -51,10 +51,7 @@ def semver(version: str) -> tuple[int, ...] | None:
 
 
 def invocation_label(readme_text: str, link: str) -> str | None:
-    """The "User-invoked" / "Model-invoked" label of the list item that links to the skill, or None.
-
-    Only the label inside the item's own section counts: the text after the last heading that isn't a label.
-    """
+    """The "User-invoked"/"Model-invoked" label over the item linking to the skill, within its section, or None."""
     item = re.search(rf"^\s*[-*] \[[^\]]*\]{re.escape(link)}", readme_text, re.MULTILINE)
     if not item:
         return None
@@ -66,14 +63,14 @@ def invocation_label(readme_text: str, link: str) -> str | None:
 
 
 def is_hidden(parts: tuple[str, ...]) -> bool:
-    """Editor swap files, .DS_Store and other dotfiles aren't part of a skill."""
+    """Dotfiles (.DS_Store, editor swap files) aren't part of a skill."""
     return any(part.startswith(".") for part in parts)
 
 
 def check_skill_files(folder: Path, text: str) -> list[str]:
     """Files SKILL.md names must exist, and every file beside SKILL.md must be named in it."""
     problems = []
-    # Not preceded by a path or URL character, so `tools/scripts/x.sh` and `https://.../scripts/x.sh` don't count.
+    # Skip matches inside a longer path or URL (`tools/scripts/x.sh`, `https://.../scripts/x.sh`).
     pattern = rf"(?<![\w/.:-])(?:\./)?((?:{'|'.join(SKILL_DIRS)})/[\w./-]+\.\w+)"
     for reference in sorted(set(re.findall(pattern, text))):
         if not (folder / reference).is_file():
@@ -166,7 +163,7 @@ def check_changelog(version: str) -> list[str]:
 
 
 def check_version_bump(version: str) -> list[str]:
-    """If anything shipped changed since the last release tag, the version must be higher than the tag's."""
+    """If shipped files changed since the last v* tag, the version must be above the tag's."""
     tag = git("describe", "--tags", "--abbrev=0", "--match", "v*")
     if tag.returncode != 0:
         if os.environ.get("CI"):
@@ -188,7 +185,7 @@ def check_version_bump(version: str) -> list[str]:
 
 
 def markdown_files() -> list[Path]:
-    """The repo's .md files, without walking into SKIP_DIRS or following symlinks."""
+    """The repo's .md files, skipping SKIP_DIRS and symlinks."""
     found = []
     for folder, subfolders, files in os.walk(ROOT):
         subfolders[:] = [name for name in subfolders if name not in SKIP_DIRS]

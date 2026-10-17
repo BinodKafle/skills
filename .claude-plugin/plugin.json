@@ -1,7 +1,7 @@
 {
   "name": "binodkafle-skills",
-  "version": "1.2.0",
-  "description": "Binod Kafle's agent skills for software engineers: adversarial PR review and more.",
+  "version": "1.2.1",
+  "description": "Binod Kafle's agent skills for software engineers.",
   "author": {
     "name": "Binod Kafle",
     "url": "https://github.com/BinodKafle"

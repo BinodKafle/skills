@@ -1,7 +1,6 @@
 # Review profile: <repo>
 
-Save as `.claude/review-profile.md` in the repo. The review reads it from the **base** tree. Fill in what applies;
-delete the rest. One example line is given under each heading.
+Save as `.claude/review-profile.md`; it's read from the base tree. Replace the examples; delete what doesn't apply.
 
 ## Commands
 - Tests (targeted): `pytest path/to/test_file.py`

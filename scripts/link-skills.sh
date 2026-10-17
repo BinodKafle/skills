@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Link every promoted skill into ~/.claude/skills, so local use runs straight from this repo and a
-# `git pull` updates it. Skills in in-progress/ are linked too, for trying them out. Re-run after
-# adding, renaming or removing a skill.
+# Symlinks every skill, drafts included, into ~/.claude/skills (or $1). Re-run after adding or renaming one.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"

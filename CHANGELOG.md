@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1 (2026-10-17)
+
+- Shorter docs, references, templates and comments. No rules changed; `SKILL.md` is untouched.
+- **break-this-pr:** shorter guard block message.
+
 ## 1.2.0 (2026-10-16)
 
 - **break-this-pr:**
