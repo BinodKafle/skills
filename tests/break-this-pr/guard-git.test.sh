@@ -42,6 +42,16 @@ while IFS="$tab" read -r wanted command; do
   expect "$command" "$wanted" "$(run_hook "$project" "$command")"
 done < "$HERE/guard-cases.tsv"
 
+# Commands the table can't hold: several lines, or many quoted strings.
+nl='
+'
+expect "line continuation" 2 "$(run_hook "$project" "git fetch origin && \\${nl}  git reset --hard")"
+expect "indented continuation" 2 "$(run_hook "$project" "git status && \\${nl}    git stash")"
+expect "continuation, read-only" 0 "$(run_hook "$project" "git log \\${nl}  --oneline")"
+many=$(awk 'BEGIN { for (i = 0; i < 250; i++) printf "\047\047 " }')
+expect "many quotes, then git" 2 "$(run_hook "$project" ": $many; sh -c 'git reset --hard'")"
+expect "many quotes, no git" 0 "$(run_hook "$project" "printf %s $many")"
+
 # 2. The marker decides whether the guard is on.
 expect "subfolder cwd, CLAUDE_PROJECT_DIR unset" 2 "$(unset CLAUDE_PROJECT_DIR; run_hook "$project/sub/dir" 'git reset --hard')"
 expect "CLAUDE_PROJECT_DIR elsewhere, cwd in repo" 2 "$(CLAUDE_PROJECT_DIR="$WORK" run_hook "$project/sub" 'git reset --hard')"

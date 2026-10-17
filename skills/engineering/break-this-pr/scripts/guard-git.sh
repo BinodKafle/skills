@@ -67,12 +67,17 @@ command_text=$(json_string command) || block "couldn't read the command from the
 verdict=$(printf '%s' "$command_text" | awk '
   BEGIN { RS = "\001" }
 
+  # A redirection target (`> file`) is dropped, so the word after it is still seen as the command.
   function flush_token() {
-    if (in_token) { ntok++; tok[ntok] = cur }
+    if (in_token) { if (redirect) redirect = 0; else { ntok++; tok[ntok] = cur } }
     cur = ""; in_token = 0
   }
-  function end_segment() { flush_token(); check_segment(); ntok = 0 }
-  function queue_nested(s) { if (nq < 50) { nq++; queue[nq] = s } }
+  function end_segment() { flush_token(); redirect = 0; check_segment(); ntok = 0 }
+  # Past the cap, a command that mentions git is blocked rather than left partly unchecked.
+  function queue_nested(s) {
+    if (nq < 200) { nq++; queue[nq] = s }
+    else if (mentions_git) deny("blocked: too many quoted strings to check")
+  }
 
   # Splits a command line into segments of tokens, queueing the inside of quoted strings to be checked as
   # commands too (`sh -c "git reset"`).
@@ -80,7 +85,11 @@ verdict=$(printf '%s' "$command_text" | awk '
     ntok = 0; cur = ""; in_token = 0; n = length(s)
     for (i = 1; i <= n; i++) {
       c = substr(s, i, 1)
-      if (c == "\\") { i++; cur = cur substr(s, i, 1); in_token = 1; continue }
+      if (c == "\\") {
+        i++
+        if (substr(s, i, 1) != "\n") { cur = cur substr(s, i, 1); in_token = 1 }  # backslash-newline joins lines
+        continue
+      }
       if (c == "\047") {
         q = ""
         for (i++; i <= n && substr(s, i, 1) != "\047"; i++) q = q substr(s, i, 1)
@@ -94,8 +103,14 @@ verdict=$(printf '%s' "$command_text" | awk '
         }
         cur = cur q; in_token = 1; queue_nested(q); continue
       }
-      if (c == " " || c == "\t" || c == "<" || c == ">") { flush_token(); continue }
-      if (c == ";" || c == "&" || c == "|" || c == "(" || c == ")" || c == "`" || c == "\n" || c == "{" || c == "}") {
+      if (c == " " || c == "\t") { flush_token(); continue }
+      if (c == "<" || c == ">") {
+        if (cur ~ /^[0-9]+$/) { cur = ""; in_token = 0 }  # the fd number in 2>
+        flush_token()
+        while (index("<>&|", substr(s, i + 1, 1))) i++  # >>, >&, <&, >|, <<
+        redirect = 1; continue
+      }
+      if (c == ";" || c == "&" || c == "|" || c == "(" || c == ")" || c == "`" || c == "\n") {
         end_segment(); continue
       }
       if (c == "$" && substr(s, i + 1, 1) == "(") { end_segment(); i++; continue }
@@ -104,22 +119,21 @@ verdict=$(printf '%s' "$command_text" | awk '
     end_segment()
   }
 
-  function basename(t,   n) { n = split(t, parts, "/"); return parts[n] }
+  # The command name, lowercased because macOS runs `GIT` as git.
+  function name(t,   n) { n = split(t, parts, "/"); return tolower(parts[n]) }
   function is_assignment(t) { return t ~ /^[A-Za-z_][A-Za-z0-9_]*=/ }
 
-  # Finds git in command position: the first word, after assignments and wrappers, or after find -exec.
-  function check_segment(   i, start) {
+  # Finds git in command position: the first word after assignments and keywords, or after find -exec. When the
+  # first word is a wrapper, its flags may take arguments (xargs -n 1, nice -n 10), so the first git after it counts.
+  function check_segment(   i, start, xargs) {
     start = 1
     while (start <= ntok) {
-      for (i = start; i <= ntok; i++) {
-        t = tok[i]
-        if (is_assignment(t)) continue
-        if (t ~ /^(command|exec|nohup|time|nice|sudo|xargs|then|do|else|if|while|until|!)$/) continue
-        if (t == "env" || t == "timeout") { while (i < ntok && (tok[i + 1] ~ /^-/ || is_assignment(tok[i + 1]) || (t == "timeout" && tok[i + 1] ~ /^[0-9]/))) i++; continue }
-        if (t ~ /^-/ && i > start && tok[start] ~ /^(sudo|xargs|nice|env)$/) continue
-        break
+      xargs = 0
+      for (i = start; i <= ntok && (is_assignment(tok[i]) || tok[i] ~ /^(then|do|else|elif|if|while|until|!|\{)$/); i++);
+      if (i <= ntok && has("command exec nohup time nice sudo doas xargs env timeout stdbuf noglob nocorrect", name(tok[i]))) {
+        for (; i <= ntok && name(tok[i]) != "git"; i++) if (name(tok[i]) == "xargs") xargs = 1
       }
-      if (i <= ntok && basename(tok[i]) == "git") check_git(i + 1)
+      if (i <= ntok && name(tok[i]) == "git") check_git(i + 1, xargs)
       for (start = i + 1; start <= ntok && tok[start - 1] !~ /^-(exec|execdir|ok|okdir)$/; start++);
     }
   }
@@ -127,7 +141,7 @@ verdict=$(printf '%s' "$command_text" | awk '
   function deny(why) { if (verdict == "") verdict = why }
   function has(set, t) { return index(" " set " ", " " t " ") > 0 }
 
-  function check_git(i,   subcmd, j, a, nonflag, listish, dst) {
+  function check_git(i, xargs,   subcmd, j, a, nonflag, listish, dst) {
     while (i <= ntok && tok[i] ~ /^-/) {
       t = tok[i]
       if (t == "-C" || t == "--git-dir" || t == "--work-tree" || t == "--namespace") { i += 2; continue }
@@ -136,7 +150,7 @@ verdict=$(printf '%s' "$command_text" | awk '
       if (t == "-c" || t ~ /^--(config-env|exec-path)/) { deny("blocked `git " t "`: config overrides can run commands or change what git does"); return }
       deny("blocked `git " t "`: unknown git option"); return
     }
-    if (i > ntok) return
+    if (i > ntok) { if (xargs) deny("blocked `xargs git`: the subcommand would come from input"); return }
     subcmd = tok[i]
     # --output (and archive -o) makes a read-only command write any file, including .git/HEAD, refs and config.
     for (j = i + 1; j <= ntok; j++) {
@@ -199,7 +213,7 @@ verdict=$(printf '%s' "$command_text" | awk '
   }
 
   {
-    nq = 1; queue[1] = $0
+    nq = 1; queue[1] = $0; mentions_git = tolower($0) ~ /git/
     for (qi = 1; qi <= nq && verdict == ""; qi++) scan(queue[qi])
   }
   END { if (verdict != "") print verdict }

@@ -42,6 +42,24 @@
 2	git archive -o x.tar HEAD
 2	git archive -vo x.tar HEAD
 2	git archive --output=x.tar HEAD
+2	git branch | grep -v main | xargs -n 1 git branch -D
+2	git branch --merged | grep -v main | xargs -I % git branch -d %
+2	echo stash | xargs git
+2	nice -n 10 git reset --hard
+2	env -u X git push --force
+2	/usr/bin/env git reset --hard
+2	command -p git reset --hard
+2	if false; then :; elif git reset --hard; then :; fi
+2	noglob git reset --hard
+2	stdbuf -o0 git stash
+2	GIT reset --hard
+2	git {reset,--hard}
+2	{ git reset --hard; }
+2	>/dev/null git reset --hard
+2	2>/dev/null git stash
+2	</dev/null git checkout -- .
+2	2>&1 git reset --hard
+2	git status && >x git checkout main
 2	git gc --prune=now
 2	git bisect start
 2	git submodule update
@@ -136,6 +154,14 @@
 0	git config --show-origin --list
 0	git ls-files -o
 0	git log --oneline
+0	git log > /tmp/log.txt
+0	git diff 2>&1 | head
+0	git status 2>/dev/null
+0	{ git status; }
+0	nice -n 10 git log
+0	timeout 10 git status
+0	git branch | xargs -n 1 echo
+0	echo git reset --hard
 0	git reflog
 0	git reflog show HEAD
 0	git notes list
