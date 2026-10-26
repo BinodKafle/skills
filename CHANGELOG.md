@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.2 (2026-10-26)
+
+- **break-this-pr:**
+  - D0 says how to fetch PR reviews and comments: one paginated call per endpoint, each saved to its own file, and
+    the fetch counts as failed unless every call succeeds. A chained fetch could fail partway and go unnoticed.
+  - Run read-only git one command per call. A denial from the project's permission rules is reported at the
+    checkpoint, not rephrased around. A broad rule such as `Bash(git merge*)` also denies `git merge-base`.
+
 ## 1.2.1 (2026-10-17)
 
 - Shorter docs, references, templates and comments. No rules changed; `SKILL.md` is untouched.
