@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.3 (2026-10-26)
+
+- **break-this-pr:** the checkpoint labels the time box as a ceiling and gives a size-based time estimate.
+
 ## 1.2.2 (2026-10-26)
 
 - **break-this-pr:**
