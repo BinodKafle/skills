@@ -74,9 +74,9 @@ data with a file tool instead.
   `Bash(git merge)` plus `Bash(git merge *)` doesn't. `git diff <base>...<head>` diffs from the merge base
   without a separate `merge-base` call.
 - Create it first, at the repository root (the superproject's root inside a submodule):
-  `root=$(git rev-parse --show-superproject-working-tree --show-toplevel | head -1) && [ -n "$root" ] && mkdir -p "$root/.claude/review" && echo "${CLAUDE_SESSION_ID}" > "$root/.claude/review/.active" && echo "$root/.claude/review/.active"`.
-  The marker holds this session's id, so the guard blocks only this session and its subagents, not other
-  sessions in the repo or its worktrees. Record the printed path in the ledger. Use that absolute path for every
+  `root=$(git rev-parse --show-superproject-working-tree --show-toplevel | head -1) && [ -n "$root" ] && mkdir -p "$root/.claude/review" && echo "${CLAUDE_CODE_SESSION_ID:-}" > "$root/.claude/review/.active" && echo "$root/.claude/review/.active"`.
+  The marker holds this session's id (subagents share it), so the guard blocks only this session and its
+  subagents, not other sessions in the repo or its worktrees. If the id is empty, the marker blocks every session. Record the printed path in the ledger. Use that absolute path for every
   touch and the delete, because a path worked out again later is wrong if the shell has moved.
 - Touch it again at each phase (`touch <marker path>`), so a long review doesn't outlive it.
 - If a crashed review leaves it behind, git stays blocked until it expires; the hook's message says to delete it.
