@@ -23,7 +23,7 @@ json_quote() {
 # case instead of freezing the run. macOS has no `timeout`.
 with_timeout() {
   perl -e '$p = fork; if (!$p) { setpgrp(0, 0); exec @ARGV } $SIG{ALRM} = sub { kill "KILL", -$p; exit 124 };
-    alarm 5; waitpid($p, 0); exit($? >> 8)' "$@"
+    alarm 5; waitpid($p, 0); exit($? & 127 ? 128 + ($? & 127) : $? >> 8)' "$@"  # a signal death is not exit 0
 }
 
 # Runs the guard (or $GUARD_CMD) on a Bash tool call: run_hook <cwd> <command> -> exit code.
@@ -60,6 +60,9 @@ expect "continuation, read-only" 0 "$(run_hook "$project" "git log \\${nl}  --on
 many=$(awk 'BEGIN { for (i = 0; i < 250; i++) printf "\047\047 " }')
 expect "many quotes, then git" 2 "$(run_hook "$project" ": $many; sh -c 'git reset --hard'")"
 expect "many quotes, no git" 0 "$(run_hook "$project" "printf %s $many")"
+# Building strings a character at a time took about 47 s for this on macOS, past the hook's 10 s timeout.
+blob=$(awk 'BEGIN { for (i = 0; i < 80000; i++) printf "aaaaaaaaaa" }')
+expect "large quoted string, then git" 2 "$(run_hook "$project" "printf %s '$blob' \"$blob\" > f && git reset --hard")"
 
 # Raw hook input with JSON escapes json_quote never writes.
 raw() { printf '{"cwd":"%s","tool_input":{"command":"%s"}}' "$project" "$1" | sh "$GUARD" >/dev/null 2>&1; echo $?; }
@@ -97,6 +100,7 @@ expect "launcher, script missing, project subfolder" 2 "$(CLAUDE_PROJECT_DIR="$p
 mkdir -p "$WORK/flat/skills" && cp -R "$SKILL" "$WORK/flat/skills/break-this-pr"
 expect "launcher, flat plugin layout" 0 "$(CLAUDE_PLUGIN_ROOT="$WORK/flat" GUARD_CMD="$launcher" run_hook "$project" 'git log')"
 plugin_hook=$(sed -n 's/^ *"command": "\(.*\)",*$/\1/p' "$REPO/hooks/hooks.json" | sed 's/\\"/"/g')
+[ -n "$plugin_hook" ] || { echo "FAIL: no hook command found in hooks/hooks.json"; failures=$((failures + 1)); }
 expect "plugin hook, blocked" 2 "$(CLAUDE_PLUGIN_ROOT="$REPO" GUARD_CMD="$plugin_hook" run_hook "$project" 'git reset --hard')"
 expect "plugin hook, allowed" 0 "$(CLAUDE_PLUGIN_ROOT="$REPO" GUARD_CMD="$plugin_hook" run_hook "$project" 'git log')"
 rm "$project/.claude/review/.active"

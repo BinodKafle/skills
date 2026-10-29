@@ -121,8 +121,7 @@ wait and not after it. Nothing from the head runs before the user says proceed.
 
 Then ask: **proceed**, **lighter** (drop one depth tier; record it under "Not covered" and cap at NOT YET) or
 **stop** (report what D0 found, verdict NOT YET, and delete the marker). Use the AskUserQuestion tool if it's
-available; otherwise ask in text and end your turn. Skip the checkpoint with `--yes`, in a background run, and at
-Light depth, where you print the plan and continue unless something blocks.
+available; otherwise ask in text and end your turn. Skip the checkpoint with `--yes` and in a background run.
 
 ## 0. Safety first
 
@@ -184,7 +183,8 @@ feature-flag defaults, schemas, migrations and deleted tests all count as code.
 
 - **Applicability.** A dimension or check the diff can't affect is `n/a`, with a one-line reason drawn from the
   diff, for example "no locale, thread or ordering code touched". `n/a` doesn't cap the verdict; `not-run` does.
-  D0, D1, D2, D9 and D10 are never `n/a`. If you're unsure whether a check applies, it applies.
+  D0, D1, D2, D9 and D10 are never `n/a`, except at Light depth: the dimensions Light doesn't run are `n/a` with
+  the reason "Light depth". If you're unsure whether a check applies, it applies.
 - **Size rule.** If the change has more than about 400 changed lines of logic, review it per changed unit, with a
   ledger section for each, and recommend the author split the PR.
 - **Time box.** When it runs out, stop, mark the remaining rows not-run, and cap the verdict at NOT YET.

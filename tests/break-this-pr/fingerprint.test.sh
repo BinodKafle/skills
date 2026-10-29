@@ -7,6 +7,8 @@ FP="$HERE/../../skills/engineering/break-this-pr/scripts/fingerprint.sh"
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 failures=0
+# CI runners have no git identity, so commits would fail.
+export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
 
 repo="$WORK/repo"
 git init -q "$repo" && git -C "$repo" commit -q --allow-empty -m init
@@ -29,6 +31,19 @@ changes "new branch" 'git branch other'
 changes "switch branch" 'git switch -q other'
 changes "local config" 'git config --local x.y z'
 changes "new untracked file" 'touch new'
+
+# names <label> <path> <command>: the command must change a line ending in <path>, so the change is attributed.
+names() {
+  before=$(sh "$FP" "$repo")
+  (cd "$repo" && eval "$3")
+  sh "$FP" "$repo" | grep -vxF "$before" | grep -q -- " $2\$" || { failures=$((failures + 1)); echo "FAIL $1: no changed line names $2"; }
+}
+
+echo n > "$repo/notes.txt"; echo n > "$repo/café.txt"; echo n > "$repo/-dash.txt"; echo c > "$repo/tracked"
+names "untracked edit" notes.txt 'echo m > notes.txt'
+names "non-ASCII name" café.txt 'echo m > café.txt'
+names "leading dash" -dash.txt 'echo m > ./-dash.txt'
+names "second edit to a modified tracked file" tracked 'echo d > tracked'
 
 echo "fingerprint: $failures failed"
 [ "$failures" -eq 0 ]

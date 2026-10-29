@@ -83,7 +83,8 @@ verdict=$(printf '%s' "$command_text" | awk '
   }
 
   # Splits into token segments; quoted strings are queued as commands too (`sh -c "git reset"`).
-  function scan(s,   i, c, n, q, ch) {
+  # Text is appended in runs with substr, not a character at a time, which is quadratic in macOS awk.
+  function scan(s,   i, j, c, n, q, ch, from) {
     ntok = 0; cur = ""; in_token = 0; n = split(s, ch, "")
     for (i = 1; i <= n; i++) {
       c = ch[i]
@@ -93,16 +94,16 @@ verdict=$(printf '%s' "$command_text" | awk '
         continue
       }
       if (c == "\047") {
-        q = ""
-        for (i++; i <= n && ch[i] != "\047"; i++) q = q ch[i]
+        for (j = i + 1; j <= n && ch[j] != "\047"; j++);
+        q = substr(s, i + 1, j - i - 1); i = j
         cur = cur q; in_token = 1; queue_nested(q); continue
       }
       if (c == "\"") {
-        q = ""
+        q = ""; from = i + 1
         for (i++; i <= n && ch[i] != "\""; i++) {
-          if (ch[i] == "\\" && i < n) i++
-          q = q ch[i]
+          if (ch[i] == "\\" && i < n) { q = q substr(s, from, i - from); i++; from = i }
         }
+        q = q substr(s, from, i - from)
         cur = cur q; in_token = 1; queue_nested(q); continue
       }
       if (c == " " || c == "\t") { flush_token(); continue }
@@ -117,7 +118,8 @@ verdict=$(printf '%s' "$command_text" | awk '
         end_segment(); continue
       }
       if (c == "$" && ch[i + 1] == "(") { end_segment(); i++; continue }
-      cur = cur c; in_token = 1
+      for (j = i; j < n && !index("\\\047\" \t<>;&|()`\n$", ch[j + 1]); j++);
+      cur = cur substr(s, i, j - i + 1); in_token = 1; i = j
     }
     end_segment()
   }
@@ -151,6 +153,14 @@ verdict=$(printf '%s' "$command_text" | awk '
 
   function deny(why) { if (verdict == "") verdict = why }
   function has(set, t) { return index(" " set " ", " " t " ") > 0 }
+  # git accepts any unambiguous prefix of a long option, so `--op=` means `--open-files-in-pager=`.
+  function long_prefix_of(t, names,   o, k, n, list) {
+    if (t !~ /^--[^=]/) return 0
+    o = substr(t, 3); k = index(o, "="); if (k) o = substr(o, 1, k - 1)
+    n = split(names, list, " ")
+    for (k = 1; k <= n; k++) if (index(list[k], o) == 1) return 1
+    return 0
+  }
 
   function check_git(i, xargs,   subcmd, j, a, nonflag, listish, dst) {
     while (i <= ntok && tok[i] ~ /^-/) {
@@ -167,7 +177,7 @@ verdict=$(printf '%s' "$command_text" | awk '
     for (j = i + 1; j <= ntok; j++) {
       if (tok[j] ~ /^--output(=|$)/ || (subcmd == "archive" && tok[j] ~ /^-[^-]*o/)) { deny("blocked `git " subcmd " " tok[j] "`: it writes a file"); return }
       # These name a program for git to run.
-      if (tok[j] ~ /^--(upload-pack|exec|open-files-in-pager)(=|$)/ || (subcmd == "grep" && tok[j] ~ /^-[^-]*O/) ||
+      if (long_prefix_of(tok[j], "upload-pack exec open-files-in-pager") || (subcmd == "grep" && tok[j] ~ /^-[^-]*O/) ||
           (subcmd == "ls-remote" && tok[j] ~ /^-[^-]*u/)) { deny("blocked `git " subcmd " " tok[j] "`: it runs a program"); return }
     }
     if (has("status diff diff-tree diff-index diff-files log show shortlog whatchanged rev-parse rev-list merge-base ls-files ls-tree ls-remote cat-file blame annotate grep describe name-rev for-each-ref show-ref cherry range-diff check-ignore check-attr count-objects var version help archive", subcmd)) return

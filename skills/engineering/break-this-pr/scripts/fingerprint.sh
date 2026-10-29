@@ -11,8 +11,12 @@ echo "stashes: $(git stash list | wc -l | tr -d ' ')"
 echo "worktrees: $(git worktree list | cksum)"
 echo "config: $(git config --local --list | cksum)"
 echo "staged: $(git diff --cached | cksum)"
-echo "tracked: $(git diff HEAD | cksum)"
+# One hash per path, so a change to a user's file isn't hidden behind the review's own writes.
+# -z keeps names unquoted (café.txt, not "caf\303\251.txt"), and -- keeps a leading - from reading as an option.
+echo "tracked:"
+git diff -z --name-only HEAD | xargs -0 -r sh -c 'for f; do echo "$(git --literal-pathspecs diff HEAD -- "$f" | cksum) $f"; done' sh
 # status lists untracked names only, so hash their contents too.
-echo "untracked contents: $(git ls-files -o --exclude-standard | while IFS= read -r f; do cksum "$f"; done | cksum)"
+echo "untracked contents:"
+git ls-files -z -o --exclude-standard | xargs -0 -r cksum --
 echo "status:"
 git status --porcelain -uall

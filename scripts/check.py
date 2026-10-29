@@ -177,7 +177,7 @@ def check_version_bump(version: str) -> list[str]:
         return [f"can't compare version {version!r} with tag {tag_name!r}"]
     if current < tagged:
         return [f"plugin.json version {version} is lower than the last release tag {tag_name}"]
-    shipped_paths = [f"skills/{bucket}/" for bucket in PROMOTED_BUCKETS] + [".claude-plugin/"]
+    shipped_paths = [f"skills/{bucket}/" for bucket in PROMOTED_BUCKETS] + [".claude-plugin/", "hooks/"]
     changed = git("diff", "--quiet", tag_name, "--", *shipped_paths).returncode != 0
     if changed and current == tagged:
         return [f"shipped files changed since {tag_name}, but plugin.json version is still {version}"]
