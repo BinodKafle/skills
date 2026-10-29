@@ -17,6 +17,8 @@ echo "tracked:"
 git diff -z --name-only HEAD | xargs -0 -r sh -c 'for f; do echo "$(git --literal-pathspecs diff HEAD -- "$f" | cksum) $f"; done' sh
 # status lists untracked names only, so hash their contents too.
 echo "untracked contents:"
-git ls-files -z -o --exclude-standard | xargs -0 -r cksum --
+# A symlink is recorded by its target, as git stores it: reading through one can hang (a link to /dev/zero).
+git ls-files -z -o --exclude-standard | xargs -0 -r sh -c 'for f; do [ ! -L "$f" ] || echo "symlink $(readlink "./$f") $f"; done' sh
+git ls-files -z -o --exclude-standard | xargs -0 -r sh -c 'for f; do [ -L "$f" ] || printf "%s\0" "$f"; done' sh | xargs -0 -r cksum --
 echo "status:"
 git status --porcelain -uall

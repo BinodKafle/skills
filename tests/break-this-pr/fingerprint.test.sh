@@ -45,5 +45,15 @@ names "non-ASCII name" café.txt 'echo m > café.txt'
 names "leading dash" -dash.txt 'echo m > ./-dash.txt'
 names "second edit to a modified tracked file" tracked 'echo d > tracked'
 
+# A symlink is recorded by its target; reading through one to /dev/zero never ends.
+ln -s /dev/zero "$repo/zero"
+# Kill the whole process group on timeout, or the cksum left behind keeps reading.
+if perl -e '$p = fork; if (!$p) { setpgrp(0, 0); exec @ARGV } $SIG{ALRM} = sub { kill "KILL", -$p; exit 124 };
+    alarm 10; waitpid($p, 0); exit($? >> 8)' sh "$FP" "$repo" >/dev/null 2>&1; then
+  names "retargeted symlink" zero 'ln -sf /dev/null zero'
+else
+  failures=$((failures + 1)); echo "FAIL symlink to /dev/zero: fingerprint didn't finish in 10 s"
+fi
+
 echo "fingerprint: $failures failed"
 [ "$failures" -eq 0 ]

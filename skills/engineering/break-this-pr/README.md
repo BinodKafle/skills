@@ -20,9 +20,9 @@ can take two hours; use it when correctness matters. Its verifiers share one mod
 
 ## What it runs and sends
 
-- **Git guard** (`scripts/guard-git.sh`): runs before each Bash command, in subagents too. In a plugin install it's
-  registered for every session; once the skill is used, also from the skill. It does nothing unless a review
-  marker exists. Reads the hook input, runs only `find`, sends nothing.
+- **Git guard** (`scripts/guard-git.sh`): runs before each Bash and Monitor command, in subagents too. In a plugin
+  install it's registered for every session; once the skill is used, also from the skill. It does nothing unless
+  a review marker exists. Reads the hook input, runs only `find`, sends nothing.
 - **The review:** runs your tests, linters, builds and the code under review locally, only in the sandbox. In
   your repo it writes only the tests and a temporary marker. Its ledger and scratch files go in
   `/tmp/claude-<uid>/break-this-pr/<repo>-<path hash>-<PR>/` and are kept, so a later round and the report's
@@ -45,7 +45,7 @@ verdict at NOT YET.
 
 | Argument | Meaning |
 |---|---|
-| `<target>` | PR number, ticket, branch or paths. Default: the current branch against its base. |
+| `<target>` | PR number, branch or paths. Default: the current branch against its base. A ticket is intent input, not a target. |
 | `--depth light\|standard\|deep` | Override the depth. Lighter than the skill's choice caps the verdict at NOT YET. |
 | `--background` | Run in a background subagent, no checkpoint. Follow with `/tasks`. |
 | `--yes` | Skip the checkpoint. |

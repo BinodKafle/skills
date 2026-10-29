@@ -19,9 +19,11 @@
   - **The guard blocks git flags that run a program:** `grep -O`, `--open-files-in-pager`, `--upload-pack`,
     `ls-remote -u` and `--exec`, including abbreviations git accepts (`--op=`, `--u=`). A command over 50 KB
     that mentions git is blocked, since checking it could outlast the hook's timeout.
+  - **The guard also checks the Monitor tool,** which runs shell commands too, and a line join inside double
+    quotes (`"gi\<newline>t" stash`) no longer hides git from it.
   - **The git fingerprint is one script call** (`scripts/fingerprint.sh`), pre-allowed with `allowed-tools`. It
     now also catches changes to the staged state and to untracked files' contents, with one hash per path so a
-    change is tied to its file.
+    change is tied to its file. A symlink is recorded by its target, so one to `/dev/zero` can't hang it.
   - **The sandbox settings are spelled out** (`strictAllowlist`, `allowUnsandboxedCommands: false`). Head code
     still runs only in the sandbox, for every author, and verifiers re-run it only once a subagent's commands
     are confirmed sandboxed.

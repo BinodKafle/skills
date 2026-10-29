@@ -110,7 +110,7 @@ verdict=$(printf '%s' "$command_text" | awk '
       if (c == "\"") {
         q = ""
         for (i++; i <= n && ch[i] != "\""; i++) {
-          if (ch[i] == "\\" && i < n) i++
+          if (ch[i] == "\\" && i < n) { i++; if (ch[i] == "\n") continue }  # backslash-newline joins lines here too
           q = q ch[i]
         }
         cur = cur q; in_token = 1; queue_nested(q); continue

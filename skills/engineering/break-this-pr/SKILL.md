@@ -6,7 +6,7 @@ argument-hint: "[PR | branch | paths] [--depth light|standard|deep] [--backgroun
 allowed-tools: Bash(${CLAUDE_SKILL_DIR}/scripts/fingerprint.sh *)
 hooks:
   PreToolUse:
-    - matcher: "Bash"
+    - matcher: "Bash|Monitor"
       hooks:
         - type: command
           # A guard that hangs or crashes blocks the call; it doesn't wave git through after a long wait.
@@ -92,7 +92,8 @@ path is the same with or without it. The hash of the repo path keeps two repos w
 
 **Every exit path** (the report is done, the user stops at the checkpoint, the time box runs out, an error you
 can't recover from) ends the same way, just before your final message and after you've listed the files this
-review wrote: `rm -f <marker path>`. If the delete is refused (auto mode's classifier
+review wrote: stop any background jobs this review started (the preparation started before the checkpoint
+keeps running otherwise), then `rm -f <marker path>`. If the delete is refused (auto mode's classifier
 may treat it as tampering), end your final message with the exact command for the user to run, and say that git
 stays blocked until they remove the marker or it expires.
 
@@ -182,7 +183,7 @@ feature-flag defaults, schemas, migrations and deleted tests all count as code.
 | Depth | When | Time box | Runs |
 |---|---|---|---|
 | Light | Prose-only docs; comments | 10 min | D0, D1, D9 |
-| Standard | Contained logic | 45 min | all dimensions; D4 is the assumption ledger, hostility and properties on the changed units |
+| Standard | Contained logic | 45 min | all dimensions; D4 is the assumption ledger, hostility, properties and rendered outputs on the changed units |
 | Deep | Data parsing or loading, money/precision, auth, persistence, concurrency, dependencies, CI | 120 min | all dimensions; D4 adds the crossed corpus and mutation, D10 adds the blind adversary |
 
 - **Applicability.** A dimension or check the diff can't affect is `n/a`, with a one-line reason drawn from the
@@ -318,8 +319,10 @@ put the draft at the end of the report instead.
 ## 9. Rounds and learning
 
 - **The ledger** is `<dir>/ledger.md` in the review folder, outside the repo. It's kept after the review, so a
-  later round on the same PR or branch picks it up. If it's gone (the OS clears temp folders), start fresh. Each
-  finding is open, fixed@SHA, rejected (why) or stale.
+  later round on the same PR or branch picks it up. If there's none but an older version's ledger exists at
+  `<root>/.claude/review/ledgers/<PR or branch>.md`, read it as the previous round and leave it in place. If
+  neither exists (the OS clears temp folders), start fresh. Each finding is open, fixed@SHA, rejected (why) or
+  stale.
 - **Each round:**
   - re-run D0, reusing the recorded test command and environment;
   - re-check every open and fixed finding;
