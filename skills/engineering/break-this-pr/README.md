@@ -99,5 +99,5 @@ header "id", observed "id" preceded by a byte-order mark · introduced · reprod
 ## Claude Code only
 
 `argument-hint`, `disable-model-invocation` and frontmatter `hooks` aren't in the Agent Skills spec. Without the
-git guard, don't run it on a working copy you care about. Tested with Claude Code 2.1.301. If the hook can't find
+git guard, don't run it on a working copy you care about. Needs Claude Code 2.1.295 or later (the hook fails closed with `onFailure`); tested with 2.1.312. If the hook can't find
 its script, it blocks every git command while a marker exists.

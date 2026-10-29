@@ -64,6 +64,9 @@ block() {
 
 command_text=$(json_string command) || block "couldn't read the command from the hook input"
 
+# No git once quotes, backslashes and line breaks are gone (they can split the word: g\it, "g"it): nothing to check.
+printf '%s' "$command_text" | tr -d '\\"\047\n' | grep -qi git || exit 0
+
 verdict=$(printf '%s' "$command_text" | awk '
   BEGIN { RS = "\001" }
 
@@ -106,7 +109,8 @@ verdict=$(printf '%s' "$command_text" | awk '
       if (c == "<" || c == ">") {
         if (cur ~ /^[0-9]+$/) { cur = ""; in_token = 0 }  # the fd number in 2>
         flush_token()
-        while (index("<>&|", ch[i + 1])) i++  # >>, >&, <&, >|, <<
+        # i < n: macOS awk finds "" at index 1, so a trailing > looped forever.
+        while (i < n && index("<>&|", ch[i + 1])) i++  # >>, >&, <&, >|, <<
         redirect = 1; continue
       }
       if (c == ";" || c == "&" || c == "|" || c == "(" || c == ")" || c == "`" || c == "\n") {

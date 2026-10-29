@@ -8,6 +8,9 @@ hooks:
     - matcher: "Bash"
       hooks:
         - type: command
+          # A guard that hangs or crashes blocks the call; it doesn't wave git through after a long wait.
+          timeout: 10
+          onFailure: block
           command: "for g in \"$CLAUDE_PLUGIN_ROOT/scripts/guard-git.sh\" \"$CLAUDE_PLUGIN_ROOT\"/skills/*/break-this-pr/scripts/guard-git.sh \"$CLAUDE_PLUGIN_ROOT\"/skills/break-this-pr/scripts/guard-git.sh; do [ -f \"$g\" ] && exec sh \"$g\"; done; grep -qi git || exit 0; p=${CLAUDE_PROJECT_DIR:-.}; for d in \"$p\" \"$(git -C \"$p\" rev-parse --show-toplevel 2>/dev/null)\"; do [ -z \"$(find \"$d/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] || { echo 'break-this-pr: the guard script is missing, so git is blocked while a review marker exists. Reinstall the skill, or delete .claude/review/.active at the repository root if no review is running.' >&2; exit 2; }; done; exit 0"
 ---
 

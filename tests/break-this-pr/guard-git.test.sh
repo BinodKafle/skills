@@ -19,10 +19,17 @@ json_quote() {
     END { if (NR == 0) print "\"\"" }'
 }
 
+# Runs "$@" in its own process group and kills the whole group after 5 s (exit 124), so a hung awk fails the
+# case instead of freezing the run. macOS has no `timeout`.
+with_timeout() {
+  perl -e '$p = fork; if (!$p) { setpgrp(0, 0); exec @ARGV } $SIG{ALRM} = sub { kill "KILL", -$p; exit 124 };
+    alarm 5; waitpid($p, 0); exit($? >> 8)' "$@"
+}
+
 # Runs the guard (or $GUARD_CMD) on a Bash tool call: run_hook <cwd> <command> -> exit code.
 run_hook() {
   printf '{"session_id":"t","cwd":%s,"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":%s,"description":"d"}}' \
-    "$(json_quote "$1")" "$(json_quote "$2")" | sh -c "${GUARD_CMD:-sh \"$GUARD\"}" >/dev/null 2>&1
+    "$(json_quote "$1")" "$(json_quote "$2")" | with_timeout sh -c "${GUARD_CMD:-sh \"$GUARD\"}" >/dev/null 2>&1
   echo $?
 }
 
@@ -48,6 +55,7 @@ nl='
 '
 expect "line continuation" 2 "$(run_hook "$project" "git fetch origin && \\${nl}  git reset --hard")"
 expect "indented continuation" 2 "$(run_hook "$project" "git status && \\${nl}    git stash")"
+expect "git split by a line join" 2 "$(run_hook "$project" "gi\\${nl}t stash")"
 expect "continuation, read-only" 0 "$(run_hook "$project" "git log \\${nl}  --oneline")"
 many=$(awk 'BEGIN { for (i = 0; i < 250; i++) printf "\047\047 " }')
 expect "many quotes, then git" 2 "$(run_hook "$project" ": $many; sh -c 'git reset --hard'")"

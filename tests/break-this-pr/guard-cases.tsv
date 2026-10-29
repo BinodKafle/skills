@@ -230,3 +230,13 @@
 0	git rev-parse HEAD; git symbolic-ref -q HEAD; git for-each-ref refs/heads | cksum; git stash list | wc -l; git worktree list | cksum; git config --local --list | cksum; git diff HEAD | cksum; git status --porcelain -uall
 0	git symbolic-ref --short HEAD
 2	git symbolic-ref -d HEAD
+# A string ending in < or > hung the 1.2.3 guard (macOS awk's index(s, "") is 1).
+0	echo "a ->"
+0	printf '</pre>'
+0	node -e 'const f = x => x; console.log("=>")'
+0	git log --format="%h ->"
+2	git reset --hard "x>"
+# git hidden by backslashes, quotes or a line join.
+2	g\it stash
+2	"g"it stash
+2	g''it stash

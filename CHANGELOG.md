@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.4 (2026-10-29)
+
+- **break-this-pr:** the git guard no longer hangs. On macOS awk, a command with a string ending in `<` or `>`
+  (`"->"`, `'</pre>'`) looped forever while a review marker existed, and each Bash call waited for the 10-minute
+  hook timeout. In real reviews this was more than half the run time.
+  - The guard skips commands that can't contain git.
+  - The hook has a 10-second timeout and fails closed (`onFailure: block`), so a future hang costs seconds
+    and never lets git through. Needs Claude Code 2.1.295 or later.
+  - Guard tests kill a case after 5 seconds, so a hang fails the test and doesn't freeze it.
+
 ## 1.2.3 (2026-10-26)
 
 - **break-this-pr:** the checkpoint labels the time box as a ceiling and gives a size-based time estimate.
