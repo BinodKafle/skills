@@ -59,7 +59,7 @@ State that the verifiers share one model family.
 
 ## 8. Files this review wrote
 The tests written in the repo, and the review folder. Anything else in the repo, or any git fingerprint
-difference from D0, is a finding against this review. Confirm the marker and the scratch folder were deleted.
+difference from D0, is a finding against this review. Confirm the marker was deleted.
 
 ## 9. Decisions for the user
 1. (each `UNDEFINED: needs a decision`, a split recommendation, a gitignore line to add, a draft to post)

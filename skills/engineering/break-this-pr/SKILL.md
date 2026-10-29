@@ -64,7 +64,8 @@ The script has the full list. Anything not on it is blocked, including aliases, 
 variables (except `GIT_PAGER=cat`, `GIT_TERMINAL_PROMPT=0` and `GIT_OPTIONAL_LOCKS=0`), fetch flags beyond the
 basic ones, and flags that run a program. The hook stays registered for the rest of the session, so the marker
 is what switches it on and off. It matches the command text, so a command that only mentions a blocked git
-command in a string is blocked too; rephrase it.
+command in a string is blocked too; rephrase it. A command over 50 KB that mentions git is blocked; write large
+data with a file tool instead.
 - Run read-only git one command per Bash call. A permission denial names the whole command, not the part that
   matched, so a chained command hides which part was refused.
 - "Permission to use Bash ... has been denied" comes from the project's permission rules, not this hook (whose
@@ -73,22 +74,25 @@ command in a string is blocked too; rephrase it.
   `Bash(git merge)` plus `Bash(git merge *)` doesn't. `git diff <base>...<head>` diffs from the merge base
   without a separate `merge-base` call.
 - Create it first, at the repository root (the superproject's root inside a submodule):
-  `root=$(git rev-parse --show-superproject-working-tree --show-toplevel | head -1) && [ -n "$root" ] && mkdir -p "$root/.claude/review" && touch "$root/.claude/review/.active" && echo "$root/.claude/review/.active"`.
-  Record the printed path in the ledger. Use that absolute path for every touch and the delete, because a path
-  worked out again later is wrong if the shell has moved.
+  `root=$(git rev-parse --show-superproject-working-tree --show-toplevel | head -1) && [ -n "$root" ] && mkdir -p "$root/.claude/review" && echo "${CLAUDE_SESSION_ID}" > "$root/.claude/review/.active" && echo "$root/.claude/review/.active"`.
+  The marker holds this session's id, so the guard blocks only this session and its subagents, not other
+  sessions in the repo or its worktrees. Record the printed path in the ledger. Use that absolute path for every
+  touch and the delete, because a path worked out again later is wrong if the shell has moved.
 - Touch it again at each phase (`touch <marker path>`), so a long review doesn't outlive it.
 - If a crashed review leaves it behind, git stays blocked until it expires; the hook's message says to delete it.
 
 **The review folder.** Everything the review writes, except the tests, goes in one folder outside the repo, so
-the user's workspace gets only the tests. Create it right after the marker:
-`dir="${TMPDIR:-/tmp}/break-this-pr/<repo name>-<PR number or branch, with / as ->" && mkdir -p "$dir/scratch" && echo "$dir"`.
+the user's workspace gets only the tests. Create it right after the marker, with `<root>` from the marker step:
+`t="/tmp/claude-$(id -u)" && dir="$t/break-this-pr/$(basename "<root>")-$(printf %s "<root>" | cksum | cut -d' ' -f1)-<PR number or branch, with / as ->" && mkdir -p "$dir/scratch" && [ -O "$t" ] && echo "$dir"`.
+`/tmp/claude-<uid>` is Claude Code's own temp folder, private to the user and writable from the sandbox, so the
+path is the same with or without it. The hash of the repo path keeps two repos with the same name apart.
 - `<dir>/ledger.md` is the ledger. It's kept after the review, so a later round can pick it up.
 - `<dir>/scratch/` holds everything else: base and head extracts, fetched reviews and comments, probe scripts,
-  corpora and raw verifier logs. It's deleted at the end.
+  corpora and raw verifier logs. It's kept too, so the trigger commands in the report can be re-run.
 
 **Every exit path** (the report is done, the user stops at the checkpoint, the time box runs out, an error you
 can't recover from) ends the same way, just before your final message and after you've listed the files this
-review wrote: `rm -rf <dir>/scratch` and `rm -f <marker path>`. If a delete is refused (auto mode's classifier
+review wrote: `rm -f <marker path>`. If the delete is refused (auto mode's classifier
 may treat it as tampering), end your final message with the exact command for the user to run, and say that git
 stays blocked until they remove the marker or it expires.
 
@@ -137,8 +141,8 @@ Read `references/safety.md` before doing anything else.
   marker (deleted at the end). Everything else goes in the review folder. Before reporting, list every file you
   created or modified (the fingerprint's status lines plus the review folder); anything else is a finding against
   this review.
-- **Running head code** follows `references/safety.md` §4: never with real secrets, and for an external
-  contributor only in the sandbox. If the rules there say it can't run, take the cannot-execute path (§3).
+- **Running head code** follows `references/safety.md` §4: only in the sandbox, with no secrets and no network.
+  Without a sandbox, don't run it; take the cannot-execute path (§3).
 - **External-contributor PRs:** say so in the report, and require a fresh session with a sandbox that refuses to
   start unsandboxed and no credentials loaded.
 
@@ -320,7 +324,7 @@ put the draft at the end of the report instead.
   - re-run D0, reusing the recorded test command and environment;
   - re-check every open and fixed finding;
   - re-derive the assumption ledger for every rule still in the change, not only the newest diff;
-  - rebuild and re-run the corpora the ledger lists (the scratch folder from the last round is gone).
+  - re-run the corpora the ledger lists, rebuilding any the OS has cleared from the scratch folder.
 - **After an escape** (a defect found later by a reviewer, CI, users or production):
   1. reproduce it;
   2. add a line to `.claude/review/precedents.md` (format in `templates/precedents.md`) and a row to

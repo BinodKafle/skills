@@ -20,11 +20,13 @@ json_string() {
     BEGIN { RS = "\001" }
     {
       if (!match($0, "\"" key "\"[ \t\r\n]*:[ \t\r\n]*\"")) exit 1
-      # Print as we go (string building is slow); on exit 1 the caller discards the output.
-      n = split(substr($0, RSTART + RLENGTH), ch, "")
+      # Split only up to the closing quote, so reading a short value (cwd) skips the rest of a large input.
+      s = substr($0, RSTART + RLENGTH)
+      if (!match(s, /^([^"\\]|\\.)*"/)) exit 1
+      # Print as we go (string building is slow).
+      n = split(substr(s, 1, RLENGTH - 1), ch, "")
       for (i = 1; i <= n; i++) {
         c = ch[i]
-        if (c == "\"") exit 0
         if (c == "\\") {
           i++; c = ch[i]
           if (c == "n") c = "\n"
@@ -37,18 +39,22 @@ json_string() {
         }
         printf "%s", c
       }
-      exit 1
+      exit 0
     }'
 }
 
 cwd=$(json_string cwd) || cwd=$PWD
+session=$(json_string session_id) || session=
 
 # The marker is at the repo (or superproject) root, so walk up from the project dir and cwd.
+# It holds the reviewing session's id, so other sessions in the same repo or its worktrees keep their git.
+# Subagents get their parent's session_id, so they stay blocked. An empty marker blocks every session.
 marker=
 for dir in "${CLAUDE_PROJECT_DIR:-}" "$cwd"; do
   while [ -n "$dir" ] && [ -z "$marker" ]; do
     if [ -e "$dir/.claude/review/.active" ] && [ -n "$(find "$dir/.claude/review/.active" -mmin -"$MAX_AGE_MINUTES" 2>/dev/null)" ]; then
-      marker="$dir/.claude/review/.active"
+      owner=; IFS= read -r owner < "$dir/.claude/review/.active"
+      [ -z "$owner" ] || [ "$owner" = "$session" ] && marker="$dir/.claude/review/.active"
     fi
     dir=${dir%/*}
   done
@@ -67,6 +73,10 @@ command_text=$(json_string command) || block "couldn't read the command from the
 # No git once quotes, backslashes and line breaks are gone (they can split the word: g\it, "g"it): nothing to check.
 printf '%s' "$command_text" | tr -d '\\"\047\n' | grep -qi git || exit 0
 
+# Parsing slows down sharply with size in macOS awk, and the hook times out after 10 s, so don't try past this.
+[ "${#command_text}" -le 50000 ] ||
+  block "the command is over 50 KB, too long to check; write large data with a file tool, not in a shell command"
+
 verdict=$(printf '%s' "$command_text" | awk '
   BEGIN { RS = "\001" }
 
@@ -83,8 +93,7 @@ verdict=$(printf '%s' "$command_text" | awk '
   }
 
   # Splits into token segments; quoted strings are queued as commands too (`sh -c "git reset"`).
-  # Text is appended in runs with substr, not a character at a time, which is quadratic in macOS awk.
-  function scan(s,   i, j, c, n, q, ch, from) {
+  function scan(s,   i, c, n, q, ch) {
     ntok = 0; cur = ""; in_token = 0; n = split(s, ch, "")
     for (i = 1; i <= n; i++) {
       c = ch[i]
@@ -94,16 +103,16 @@ verdict=$(printf '%s' "$command_text" | awk '
         continue
       }
       if (c == "\047") {
-        for (j = i + 1; j <= n && ch[j] != "\047"; j++);
-        q = substr(s, i + 1, j - i - 1); i = j
+        q = ""
+        for (i++; i <= n && ch[i] != "\047"; i++) q = q ch[i]
         cur = cur q; in_token = 1; queue_nested(q); continue
       }
       if (c == "\"") {
-        q = ""; from = i + 1
+        q = ""
         for (i++; i <= n && ch[i] != "\""; i++) {
-          if (ch[i] == "\\" && i < n) { q = q substr(s, from, i - from); i++; from = i }
+          if (ch[i] == "\\" && i < n) i++
+          q = q ch[i]
         }
-        q = q substr(s, from, i - from)
         cur = cur q; in_token = 1; queue_nested(q); continue
       }
       if (c == " " || c == "\t") { flush_token(); continue }
@@ -118,8 +127,7 @@ verdict=$(printf '%s' "$command_text" | awk '
         end_segment(); continue
       }
       if (c == "$" && ch[i + 1] == "(") { end_segment(); i++; continue }
-      for (j = i; j < n && !index("\\\047\" \t<>;&|()`\n$", ch[j + 1]); j++);
-      cur = cur substr(s, i, j - i + 1); in_token = 1; i = j
+      cur = cur c; in_token = 1
     }
     end_segment()
   }

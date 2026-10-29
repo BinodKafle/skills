@@ -34,7 +34,9 @@ If a change does more than the PR claims, stop executing and report a blocker.
 **Never with secrets.** Don't load real `.env` files; unset forge, cloud and model API tokens; use test settings
 or placeholders. Code that needs a real secret takes the cannot-execute path.
 
-**The sandbox.** The Claude Code sandbox covers shell commands only. These settings make it strict:
+**Only in the sandbox.** Head code runs only inside the Claude Code sandbox, for every author. No sandbox: don't
+run head code; take the cannot-execute path and cap the verdict at NOT YET. The sandbox covers shell commands
+only. These settings make it strict:
 
 ```json
 {
@@ -52,18 +54,15 @@ or placeholders. Code that needs a real secret takes the cannot-execute path.
 - `strictAllowlist` refuses every host not on the allowlist. Without it, an unlisted host gets a permission
   prompt (or is let through in bypass mode). Claude Code reads it only from user, managed or `--settings`
   settings.
-- Forge and docs lookups are separate tools and stay available.
+- **Network:** head code gets an empty allowlist, so with `strictAllowlist` it reaches no host. Forge and docs
+  lookups are separate tools and stay available.
 - Claude Code doesn't document whether subagents' commands are sandboxed. Verifiers re-run triggers, which runs
-  head code, so treat their runs as unsandboxed unless you've confirmed otherwise.
-
-**Who may run head code where:**
-
-| Author | Sandbox configured | Sandbox not configured |
-|---|---|---|
-| The team (same org, not a fork) | run inside it | run it, with no secrets; the report says it ran unsandboxed |
-| External contributor or fork | run inside it, with §5 | don't run it: cannot-execute, verdict NOT YET |
+  head code, so the same rule applies: before a verifier re-runs head code, confirm that a subagent's command is
+  sandboxed (a write outside the working directory is refused). If it isn't, verifiers check the recorded
+  evidence without re-running it, and the report says so.
 
 ## 5. External contributors (outside the team, or a fork)
 
 A fresh session with no credentials, the sandbox with the settings above, no forge write access, and every
-harness-file change treated as a blocker until the user has read it.
+harness-file change treated as a blocker until the user has read it. A branch or path target with no PR has no known
+author (it may be a fork checked out locally), so treat it as external unless the user says it's the team's.

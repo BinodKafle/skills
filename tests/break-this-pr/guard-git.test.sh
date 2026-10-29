@@ -60,9 +60,12 @@ expect "continuation, read-only" 0 "$(run_hook "$project" "git log \\${nl}  --on
 many=$(awk 'BEGIN { for (i = 0; i < 250; i++) printf "\047\047 " }')
 expect "many quotes, then git" 2 "$(run_hook "$project" ": $many; sh -c 'git reset --hard'")"
 expect "many quotes, no git" 0 "$(run_hook "$project" "printf %s $many")"
-# Building strings a character at a time took about 47 s for this on macOS, past the hook's 10 s timeout.
+# Parsing took about 47 s for 1.6 MB on macOS, past the hook's 10 s timeout, so commands over 50 KB are blocked.
 blob=$(awk 'BEGIN { for (i = 0; i < 80000; i++) printf "aaaaaaaaaa" }')
 expect "large quoted string, then git" 2 "$(run_hook "$project" "printf %s '$blob' \"$blob\" > f && git reset --hard")"
+expect "over 50 KB, read-only git" 2 "$(run_hook "$project" "printf %s '$blob' > f && git log")"
+blob=$(awk 'BEGIN { for (i = 0; i < 2400; i++) printf "aaaaaaaaaa" }')
+expect "just under 50 KB, read-only git" 0 "$(run_hook "$project" "printf %s '$blob' \"$blob\" > f && git log")"
 
 # Raw hook input with JSON escapes json_quote never writes.
 raw() { printf '{"cwd":"%s","tool_input":{"command":"%s"}}' "$project" "$1" | sh "$GUARD" >/dev/null 2>&1; echo $?; }
@@ -80,6 +83,13 @@ git -C "$WORK" init -q submodule && git -C "$WORK/submodule" commit -q --allow-e
 git -C "$project" -c protocol.file.allow=always submodule -q add "$WORK/submodule" mod 2>/dev/null
 expect "cwd in a submodule" 2 "$(unset CLAUDE_PROJECT_DIR; run_hook "$project/mod" 'git reset --hard')"
 expect "unreadable hook input blocks" 2 "$(cd "$WORK" && printf 'not json' | sh "$GUARD" >/dev/null 2>&1; echo $?)"
+# The marker names the reviewing session (run_hook sends session_id "t"); other sessions keep their git.
+echo t > "$project/.claude/review/.active"
+expect "marker names this session" 2 "$(run_hook "$project" 'git reset --hard')"
+echo other > "$project/.claude/review/.active"
+expect "marker names another session" 0 "$(run_hook "$project" 'git reset --hard')"
+expect "another session's marker, worktree below it" 0 "$(run_hook "$project/sub/dir" 'git stash')"
+: > "$project/.claude/review/.active"
 touch -t 202001010000 "$project/.claude/review/.active"
 expect "stale marker" 0 "$(run_hook "$project" 'git reset --hard')"
 rm "$project/.claude/review/.active"

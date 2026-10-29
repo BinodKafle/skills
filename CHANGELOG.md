@@ -8,21 +8,23 @@
     Deep. Lenses own the reading, and one base test run and one reader search each serve two dimensions.
   - **Preparation overlaps the checkpoint.** Extracts, the reader search and a smoke run of the base's tests start
     before the question.
-  - **Only the tests land in your repo.** The ledger and scratch files go in `$TMPDIR/break-this-pr/<repo>-<PR>/`.
-    The scratch files are deleted at the end and the ledger is kept for the next round. The ledger's gitignore
-    check is gone.
+  - **Only the tests land in your repo.** The ledger and scratch files go in
+    `/tmp/claude-<uid>/break-this-pr/<repo>-<path hash>-<PR>/`, the same path with or without the sandbox, and
+    are kept for the next round and for re-running the report's triggers. The ledger's gitignore check is gone.
   - **The guard covers subagents in plugin installs.** It's now also a plugin hook (`hooks/hooks.json`), and
     Claude Code runs plugin hooks inside subagents. Verified in a live session. Like the skill's hook, it fails
     closed (`onFailure: block`).
+  - **The guard blocks only the reviewing session.** The marker holds its session id, and subagents share it, so
+    other sessions and worktrees in the same repo keep their git.
   - **The guard blocks git flags that run a program:** `grep -O`, `--open-files-in-pager`, `--upload-pack`,
-    `ls-remote -u` and `--exec`, including abbreviations git accepts (`--op=`, `--u=`). Long quoted strings no
-    longer slow it past its timeout.
+    `ls-remote -u` and `--exec`, including abbreviations git accepts (`--op=`, `--u=`). A command over 50 KB
+    that mentions git is blocked, since checking it could outlast the hook's timeout.
   - **The git fingerprint is one script call** (`scripts/fingerprint.sh`), pre-allowed with `allowed-tools`. It
     now also catches changes to the staged state and to untracked files' contents, with one hash per path so a
     change is tied to its file.
-  - **Sandbox rules match practice.** Team PRs may run unsandboxed without secrets, and the report says so.
-    Outside contributors' code runs only in the sandbox, with `strictAllowlist` and
-    `allowUnsandboxedCommands: false`.
+  - **The sandbox settings are spelled out** (`strictAllowlist`, `allowUnsandboxedCommands: false`). Head code
+    still runs only in the sandbox, for every author, and verifiers re-run it only once a subagent's commands
+    are confirmed sandboxed.
   - The ledger's dimension table and findings are in report format, so the report copies them. The verdict waits
     for every verifier. Severity gating lives in one place. A ticket is intent input, not a target.
 
