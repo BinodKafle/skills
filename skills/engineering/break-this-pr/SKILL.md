@@ -4,15 +4,6 @@ description: Adversarial senior-engineer review of a PR or branch. Verifies ever
 disable-model-invocation: true
 argument-hint: "[PR | branch | paths] [--depth light|standard|deep] [--background] [--yes] [--post]"
 allowed-tools: Bash(${CLAUDE_SKILL_DIR}/scripts/fingerprint.sh *)
-hooks:
-  PreToolUse:
-    - matcher: "Bash|Monitor"
-      hooks:
-        - type: command
-          # A guard that hangs or crashes blocks the call; it doesn't wave git through after a long wait.
-          timeout: 10
-          onFailure: block
-          command: "for g in \"$CLAUDE_PLUGIN_ROOT/scripts/guard-git.sh\" \"$CLAUDE_PLUGIN_ROOT\"/skills/*/break-this-pr/scripts/guard-git.sh \"$CLAUDE_PLUGIN_ROOT\"/skills/break-this-pr/scripts/guard-git.sh; do [ -f \"$g\" ] && exec sh \"$g\"; done; grep -qi git || exit 0; p=${CLAUDE_PROJECT_DIR:-.}; for d in \"$p\" \"$(git -C \"$p\" rev-parse --show-toplevel 2>/dev/null)\"; do [ -z \"$(find \"$d/.claude/review/.active\" -mmin -240 2>/dev/null)\" ] || { echo 'break-this-pr: the guard script is missing, so git is blocked while a review marker exists. Reinstall the skill, or delete .claude/review/.active at the repository root if no review is running.' >&2; exit 2; }; done; exit 0"
 ---
 
 # Break this PR
@@ -26,8 +17,8 @@ filled, or marked `n/a` or `not-run` with the reason. A verdict without a comple
 The arguments are: `$ARGUMENTS`
 
 Parse them before doing anything else. Words that aren't flags are the target: a PR number, a branch or paths.
-With no target, review the current branch against its base. A ticket id or URL is not a target; it's intent
-input for D1 and the Intent-only lens. Fetch it if a tool can, otherwise ask the user for its text.
+With no target, review the current branch against its base. A ticket is intent input for D1, not a target; fetch
+it if a tool can, otherwise ask for its text.
 
 | Flag | Effect |
 |---|---|
@@ -46,83 +37,67 @@ With `--background`, don't review in this session:
    directory and the target, and says: "Read `<base directory>/SKILL.md` and follow it for `<target>` with the
    flags `<the same flags, without --background, plus --yes>`. Your final message is the complete report from
    `templates/report.md`, every section, never shortened."
-2. Tell the user it's running, and how to follow it (`/tasks`, or select the agent in the agent panel). Also tell
-   them that their own state-changing git is blocked in this project until it finishes.
+2. Tell the user it's running, how to follow it (`/tasks`), and that their state-changing git in this session is
+   blocked until it finishes.
 3. When it finishes, print its report in full, unchanged, then delete the marker (below) if it's still there. If it
    failed or stopped early, say so and show what it returned.
 
 If the Agent tool can't run a subagent in the background here, say so and ask whether to run inline instead.
 
-## Lifecycle: marker, review folder, progress and checkpoint
+## Lifecycle
 
-**The marker.** While `.claude/review/.active` exists at the repository root and is less than 4 hours old, this
-skill's hook (`scripts/guard-git.sh`) blocks every git command that isn't on its read-only allowlist. That covers
-the commands this skill uses: status, diff, log, show, blame, grep, rev-parse, merge-base, ls-files, cat-file,
-for-each-ref, check-ignore, symbolic-ref without a target, `git archive` (for read-only extracts), `git fetch`
-into `FETCH_HEAD` or `refs/remotes/`, and the list forms of branch, tag, stash, worktree, remote and config.
-The script has the full list. Anything not on it is blocked, including aliases, `-c` overrides, `GIT_*`
-variables (except `GIT_PAGER=cat`, `GIT_TERMINAL_PROMPT=0` and `GIT_OPTIONAL_LOCKS=0`), fetch flags beyond the
-basic ones, and flags that run a program. The hook stays registered for the rest of the session, so the marker
-is what switches it on and off. It matches the command text, so a command that only mentions a blocked git
-command in a string is blocked too; rephrase it. A command over 50 KB that mentions git is blocked; write large
-data with a file tool instead.
-- Run read-only git one command per Bash call. A permission denial names the whole command, not the part that
-  matched, so a chained command hides which part was refused.
-- "Permission to use Bash ... has been denied" comes from the project's permission rules, not this hook (whose
-  messages start with `break-this-pr:`). Don't rephrase around it. Name the denied command at the checkpoint and
-  suggest a narrower rule; for example, `Bash(git merge*)` also denies the read-only `git merge-base`, while
-  `Bash(git merge)` plus `Bash(git merge *)` doesn't. `git diff <base>...<head>` diffs from the merge base
-  without a separate `merge-base` call.
+**The marker.** While `.claude/review/.active` exists at the repository root and is under 4 hours old, the
+plugin's git guard (`scripts/guard-git.sh`) allows only read-only git: the commands this skill uses, listed in
+the script. It blocks everything else, including aliases, `-c`, `GIT_*` variables, flags that run a program, any
+command that mentions a blocked one in a string (rephrase it) and any command over 50 KB that mentions git (use a
+file tool for large data).
 - Create it first, at the repository root (the superproject's root inside a submodule):
   `root=$(git rev-parse --show-superproject-working-tree --show-toplevel | head -1) && [ -n "$root" ] && mkdir -p "$root/.claude/review" && echo "${CLAUDE_CODE_SESSION_ID:-}" > "$root/.claude/review/.active" && echo "$root/.claude/review/.active"`.
-  The marker holds this session's id (subagents share it), so the guard blocks only this session and its
-  subagents, not other sessions in the repo or its worktrees. If the id is empty, the marker blocks every session. Record the printed path in the ledger. Use that absolute path for every
-  touch and the delete, because a path worked out again later is wrong if the shell has moved.
-- Touch it again at each phase (`touch <marker path>`), so a long review doesn't outlive it.
-- If a crashed review leaves it behind, git stays blocked until it expires; the hook's message says to delete it.
+  It holds the session id, so only this session and its subagents are blocked (an empty id blocks every
+  session). Record the printed path in the ledger and use it for every touch and the delete.
+- Touch it at each phase (`touch <marker path>`), so a long review doesn't outlive it. A crashed review's marker
+  blocks git until it expires; the guard's message says to delete it.
+- Run read-only git one command per Bash call, so a denial names the right command. "Permission to use Bash ...
+  has been denied" comes from the project's permission rules, not the guard (whose messages start with
+  `break-this-pr:`). Don't rephrase around it; name it at the checkpoint and suggest a narrower rule (for example,
+  `Bash(git merge*)` also denies `git merge-base`; `Bash(git merge)` plus `Bash(git merge *)` doesn't).
+  `git diff <base>...<head>` diffs from the merge base without calling `merge-base`.
 
-**The review folder.** Everything the review writes, except the tests, goes in one folder outside the repo, so
-the user's workspace gets only the tests. Create it right after the marker, with `<root>` from the marker step:
+**The review folder.** Everything except the tests goes in one folder outside the repo. Create it right after the
+marker, with `<root>` from the marker step:
 `t="/tmp/claude-$(id -u)" && dir="$t/break-this-pr/$(basename "<root>")-$(printf %s "<root>" | cksum | cut -d' ' -f1)-<PR number or branch, with / as ->" && mkdir -p "$dir/scratch" && [ -O "$t" ] && echo "$dir"`.
-`/tmp/claude-<uid>` is Claude Code's own temp folder, private to the user and writable from the sandbox, so the
-path is the same with or without it. The hash of the repo path keeps two repos with the same name apart.
-- `<dir>/ledger.md` is the ledger. It's kept after the review, so a later round can pick it up.
-- `<dir>/scratch/` holds everything else: base and head extracts, fetched reviews and comments, probe scripts,
-  corpora and raw verifier logs. It's kept too, so the trigger commands in the report can be re-run.
+It's Claude Code's private temp folder, writable with or without the sandbox; the hash keeps same-name repos
+apart. `<dir>/ledger.md` is the ledger. `<dir>/scratch/` holds extracts, fetched reviews, probe scripts, corpora
+and verifier logs. Both are kept, for later rounds and so the report's triggers can be re-run.
 
-**Every exit path** (the report is done, the user stops at the checkpoint, the time box runs out, an error you
-can't recover from) ends the same way, just before your final message and after you've listed the files this
-review wrote: stop any background jobs this review started (the preparation started before the checkpoint
-keeps running otherwise), then `rm -f <marker path>`. If the delete is refused (auto mode's classifier
-may treat it as tampering), end your final message with the exact command for the user to run, and say that git
-stays blocked until they remove the marker or it expires.
+**Every exit path** (report done, stop at the checkpoint, time box out, unrecoverable error) ends, just before
+your final message and after listing the files this review wrote, by stopping any background jobs this review
+started and running `rm -f <marker path>`. If the delete is refused, end with the exact command for the user to
+run, and say git stays blocked until it's removed or expires.
 
-**Subagents.** In a plugin install, the guard is also a plugin hook, and plugin hooks run inside subagents. When
-the skill is copied in as a standalone folder, only this skill's own hook exists, and Claude Code doesn't document
-whether it runs inside subagents. Either way, every subagent you launch (lenses, verifiers, a background review)
-gets this line in its prompt: "Never run git commands that change the working tree, the index, branches, stashes,
-worktrees, config or history; use read-only git only, such as `git show`, `git diff` and `git log`."
+**Subagents.** The plugin hook covers subagents; a skill copied in without the plugin has no guard. Either way,
+every subagent you launch gets this line in its prompt: "Never run git commands that change the working tree, the
+index, branches, stashes, worktrees, config or history; use read-only git only, such as `git show`, `git diff`
+and `git log`."
 
-**Git fingerprint.** The hook can't see git reached through a variable, `eval`, a script or another language, so
-check the result too. At D0, run `<this skill's base directory>/scripts/fingerprint.sh <repo root>` and record
-its output in the ledger. Run it again before the report. Any difference not explained by the files this review
-wrote (a lost edit, a changed untracked file, a moved branch, changed config) is a finding against this review,
-reported in section 8.
+**Git fingerprint.** The guard can't see git run through a variable, `eval`, a script or another language, so
+check the result. At D0, run `<this skill's base directory>/scripts/fingerprint.sh <repo root>` and record the
+output in the ledger; run it again before the report. Any difference the review's own files don't explain (a
+lost edit, a changed untracked file, a moved branch, changed config) is a finding against this review (§8).
 
-**Progress.** Before each phase, print one line, for example `break-this-pr · executed work · 14 readers to
-check`. The phases are D0, triage, executed work (D1 to D9), verification (D10) and the report.
+**Progress.** Before each phase (D0, triage, executed work D1 to D9, verification D10, the report), print one
+line, for example `break-this-pr · executed work · 14 readers to check`.
 
 **Checkpoint.** After D0 and triage, stop and show:
-- the depth and why, and the time box, labelled as a ceiling (the point where the review stops), not an estimate;
+- the depth and why, and the time box, labelled as a ceiling (where the review stops), not an estimate;
 - the plan: the dimensions to run, the ones that are `n/a` and why, the lenses and verifiers, and any parts that
   can't execute;
 - the estimated cost: agent time scaled to the diff's size and the plan, and the number of subagents;
 - anything already found that blocks (a harness-file change, a failed review fetch, injected instructions).
 
-Before you ask, start the preparation that doesn't run head code as background jobs, so it runs while the user
-reads: the base and head extracts, the reader search for D2, and a smoke run of the profile's test command on the
-base extract. Test setup problems (missing build steps, settings, placeholder secrets) then surface during the
-wait and not after it. Nothing from the head runs before the user says proceed.
+Before asking, start the preparation that doesn't run head code as background jobs: base and head extracts, the
+D2 reader search, and a smoke run of the profile's test command on the base, so setup problems surface during
+the wait. Nothing from the head runs before the user says proceed.
 
 Then ask: **proceed**, **lighter** (drop one depth tier; record it under "Not covered" and cap at NOT YET) or
 **stop** (report what D0 found, verdict NOT YET, and delete the marker). Use the AskUserQuestion tool if it's
@@ -138,12 +113,11 @@ Read `references/safety.md` before doing anything else.
   config. Never load them from the head.
 - **Before running anything from the head,** diff its harness files (the list is in `references/safety.md`). Any
   change there is a finding, reported first, and the file is read before it is executed.
-- **You never change the code under review.** In the repo you may write only test files (the deliverable) and the
-  marker (deleted at the end). Everything else goes in the review folder. Before reporting, list every file you
-  created or modified (the fingerprint's status lines plus the review folder); anything else is a finding against
-  this review.
-- **Running head code** follows `references/safety.md` §4: only in the sandbox, with no secrets and no network.
-  Without a sandbox, don't run it; take the cannot-execute path (§3).
+- **You never change the code under review.** In the repo you write only test files (the deliverable) and the
+  marker. Before reporting, list every file you created or modified (the fingerprint's status lines plus the
+  review folder); anything else is a finding against this review.
+- **Run head code only in a sandbox,** with no secrets in the environment and no network (`references/safety.md`
+  §4). If you can't isolate it, don't execute it; take the cannot-execute path (§3).
 - **External-contributor PRs:** say so in the report, and require a fresh session with a sandbox that refuses to
   start unsandboxed and no credentials loaded.
 
@@ -186,10 +160,10 @@ feature-flag defaults, schemas, migrations and deleted tests all count as code.
 | Standard | Contained logic | 45 min | all dimensions; D4 is the assumption ledger, hostility, properties and rendered outputs on the changed units |
 | Deep | Data parsing or loading, money/precision, auth, persistence, concurrency, dependencies, CI | 120 min | all dimensions; D4 adds the crossed corpus and mutation, D10 adds the blind adversary |
 
-- **Applicability.** A dimension or check the diff can't affect is `n/a`, with a one-line reason drawn from the
-  diff, for example "no locale, thread or ordering code touched". `n/a` doesn't cap the verdict; `not-run` does.
-  D0, D1, D2, D9 and D10 are never `n/a`, except at Light depth: the dimensions Light doesn't run are `n/a` with
-  the reason "Light depth". If you're unsure whether a check applies, it applies.
+- **Applicability.** A dimension or check the diff can't affect is `n/a`, with a one-line reason from the diff
+  (for example "no locale, thread or ordering code touched"). `n/a` doesn't cap the verdict; `not-run` does.
+  D0, D1, D2, D9 and D10 are never `n/a`, except the dimensions Light doesn't run ("Light depth"). If you're
+  unsure whether a check applies, it applies.
 - **Size rule.** If the change has more than about 400 changed lines of logic, review it per changed unit, with a
   ledger section for each, and recommend the author split the PR.
 - **Time box.** When it runs out, stop, mark the remaining rows not-run, and cap the verdict at NOT YET.
@@ -214,8 +188,8 @@ feature-flag defaults, schemas, migrations and deleted tests all count as code.
   - changed units;
   - removals: what each did, and where it now lives;
   - what won't be reviewed.
-- Once the tests run, record the exact test command and environment that worked (settings, placeholder
-  secrets, build steps) in the ledger. Later rounds reuse it.
+- Record the test command and environment that worked (settings, placeholder secrets, build steps); later rounds
+  reuse it.
 - Reproduce every outside reviewer's finding on the current head, and mark each real, stale or false.
 
 ## 5. Triage lenses (Standard and Deep)
@@ -229,14 +203,13 @@ Spawn parallel fresh-context subagents. Context asymmetry is deliberate:
 | Design and standards | diff, base, official docs | D5–D7 |
 | Ops, tests and words | diff, tests, PR text | D8–D9 |
 
-The lenses own the reading. Record their evidence in the ledger as it comes back, then execute only the leads
-they raise: D1 to D4 wherever they point, and any D5 to D9 lead that needs running to confirm. Don't redo the
-reading a lens already did.
+The lenses own the reading; don't redo it. Record their evidence in the ledger, then execute their leads: D1 to
+D4 wherever they point, and any D5 to D9 lead that needs a run to confirm.
 
 ## 6. Dimensions
 
-Details, evidence requirements and examples are in `references/dimensions.md`. Some runs serve two dimensions:
-one base run of the PR's own tests serves D3 and D9, and one reader search serves D2 and D9's ripple check.
+Details, evidence requirements and examples are in `references/dimensions.md`. One base run of the PR's tests
+serves D3 and D9; one reader search serves D2 and D9's ripple check.
 
 - **D1 Intent.** Each promised behaviour is done, partial or not done, checked through the real entry point. Every
   behaviour change the differential finds maps to an intent row, or it is an undeclared change.
@@ -283,8 +256,8 @@ where one is available.
 - **Blind adversary (Deep):** working only from the ticket, the description and the public signatures, writes its
   own inputs and expected results. Run them on both trees and triage every mismatch.
 
-Wait for every verifier to finish before the verdict. If one can't finish, mark D10 not-run. Summarize verifier
-results in the ledger and the report; raw logs stay in `<dir>/scratch/`.
+Wait for every verifier before the verdict; one that can't finish makes D10 not-run. Summarize their results in
+the ledger and the report; raw logs stay in `<dir>/scratch/`.
 
 ## 8. Findings and verdict
 
@@ -304,9 +277,9 @@ Name the gate that decided it.
 ### The report
 
 Fill `templates/report.md`. Your final message **is** that report: all ten sections, in order, with the full
-finding format and the evidence. Never shorten it, summarize it, or point to the ledger instead. The ledger's
-dimension table and findings are already in report format, so copy them across rather than rewriting them. A
-section with nothing in it says "none" and why.
+finding format and the evidence. Never shorten it, summarize it, or point to the ledger instead. Copy the ledger's
+dimension table and findings across; they're already in report format. A section with nothing in it says "none"
+and why.
 
 ### Posting (`--post`)
 
@@ -318,21 +291,18 @@ put the draft at the end of the report instead.
 
 ## 9. Rounds and learning
 
-- **The ledger** is `<dir>/ledger.md` in the review folder, outside the repo. It's kept after the review, so a
-  later round on the same PR or branch picks it up. If there's none but an older version's ledger exists at
-  `<root>/.claude/review/ledgers/<PR or branch>.md`, read it as the previous round and leave it in place. If
-  neither exists (the OS clears temp folders), start fresh. Each finding is open, fixed@SHA, rejected (why) or
-  stale.
+- **The ledger** (`<dir>/ledger.md`) is kept, so a later round on the same PR or branch picks it up. Without one,
+  read a 1.2.x ledger at `<root>/.claude/review/ledgers/<PR or branch>.md` if it exists; otherwise start fresh.
+  Each finding is open, fixed@SHA, rejected (why) or stale.
 - **Each round:**
   - re-run D0, reusing the recorded test command and environment;
   - re-check every open and fixed finding;
   - re-derive the assumption ledger for every rule still in the change, not only the newest diff;
-  - re-run the corpora the ledger lists, rebuilding any the OS has cleared from the scratch folder.
+  - re-run the corpora the ledger lists, rebuilding any the OS has cleared.
 - **After an escape** (a defect found later by a reviewer, CI, users or production):
   1. reproduce it;
   2. add a line to `.claude/review/precedents.md` (format in `templates/precedents.md`) and a row to
-     `.claude/review/evals.md` (format in `templates/evals.md`). These two live in the repo on purpose: the team
-     keeps them;
+     `.claude/review/evals.md` (format in `templates/evals.md`); both are committed, for the team;
   3. change the method, never by adding an incident-specific rule.
 - Record your rejected findings too, so precision is tracked as well as recall.
 

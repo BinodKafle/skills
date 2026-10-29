@@ -46,9 +46,8 @@ json_string() {
 cwd=$(json_string cwd) || cwd=$PWD
 session=$(json_string session_id) || session=
 
-# The marker is at the repo (or superproject) root, so walk up from the project dir and cwd.
-# It holds the reviewing session's id, so other sessions in the same repo or its worktrees keep their git.
-# Subagents get their parent's session_id, so they stay blocked. An empty marker blocks every session.
+# The marker is at the repo (or superproject) root, so walk up. It names the reviewing session (subagents share
+# its id); an empty marker blocks every session.
 marker=
 for dir in "${CLAUDE_PROJECT_DIR:-}" "$cwd"; do
   while [ -n "$dir" ] && [ -z "$marker" ]; do
@@ -73,7 +72,7 @@ command_text=$(json_string command) || block "couldn't read the command from the
 # No git once quotes, backslashes and line breaks are gone (they can split the word: g\it, "g"it): nothing to check.
 printf '%s' "$command_text" | tr -d '\\"\047\n' | grep -qi git || exit 0
 
-# Parsing slows down sharply with size in macOS awk, and the hook times out after 10 s, so don't try past this.
+# Parsing is slow on huge input in macOS awk, and the hook times out at 10 s.
 [ "${#command_text}" -le 50000 ] ||
   block "the command is over 50 KB, too long to check; write large data with a file tool, not in a shell command"
 

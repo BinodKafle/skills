@@ -1,8 +1,7 @@
 # Review ledger: <PR or branch>
 
-Lives at `<review folder>/ledger.md`, outside the repo. Every row is filled, or marked `n/a` or `not-run` with
-the reason. A verdict without a complete ledger is invalid. The dimension table and findings are in report
-format, so the report copies them as they are.
+Every row is filled, or marked `n/a` or `not-run` with the reason. A verdict without a complete ledger is
+invalid. The report copies the dimension table and findings as they are.
 
 ## Scope
 | Field | Value |

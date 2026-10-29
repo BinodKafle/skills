@@ -1,5 +1,5 @@
 #!/bin/sh
-# Tests guard-git.sh and its SKILL.md launcher. Exits 1 on any failure.
+# Tests guard-git.sh and its plugin hook. Exits 1 on any failure.
 set -u
 
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -19,8 +19,7 @@ json_quote() {
     END { if (NR == 0) print "\"\"" }'
 }
 
-# Runs "$@" in its own process group and kills the whole group after 5 s (exit 124), so a hung awk fails the
-# case instead of freezing the run. macOS has no `timeout`.
+# Runs "$@" in its own process group, killed after 5 s (exit 124), so a hang fails the case. macOS has no `timeout`.
 with_timeout() {
   perl -e '$p = fork; if (!$p) { setpgrp(0, 0); exec @ARGV } $SIG{ALRM} = sub { kill "KILL", -$p; exit 124 };
     alarm 5; waitpid($p, 0); exit($? & 127 ? 128 + ($? & 127) : $? >> 8)' "$@"  # a signal death is not exit 0
@@ -97,29 +96,13 @@ rm "$project/.claude/review/.active"
 expect "no marker" 0 "$(run_hook "$project" 'git reset --hard')"
 expect "no marker, unreadable input" 0 "$(cd "$WORK" && printf 'not json' | with_timeout sh "$GUARD" >/dev/null 2>&1; echo $?)"
 
-# 3. The launcher finds the script in each install layout, and fails closed without it.
-launcher=$(sed -n 's/^ *command: "\(.*\)"$/\1/p' "$SKILL/SKILL.md" | sed 's/\\"/"/g')
-[ -n "$launcher" ] || { echo "FAIL: no hook command found in SKILL.md"; failures=$((failures + 1)); }
-touch "$project/.claude/review/.active"
-for root in "$REPO" "$SKILL"; do # plugin root, and a skill copied into ~/.claude/skills
-  expect "launcher, root $root, blocked" 2 "$(CLAUDE_PLUGIN_ROOT="$root" GUARD_CMD="$launcher" run_hook "$project" 'git reset --hard')"
-  expect "launcher, root $root, allowed" 0 "$(CLAUDE_PLUGIN_ROOT="$root" GUARD_CMD="$launcher" run_hook "$project" 'git log')"
-done
-expect "launcher, script missing, marker active" 2 "$(CLAUDE_PLUGIN_ROOT="$WORK" GUARD_CMD="$launcher" run_hook "$project" 'git log')"
-expect "launcher, script missing, not git" 0 "$(CLAUDE_PLUGIN_ROOT="$WORK" GUARD_CMD="$launcher" run_hook "$project" 'ls')"
-expect "launcher, script missing, project subfolder" 2 "$(CLAUDE_PROJECT_DIR="$project/sub" CLAUDE_PLUGIN_ROOT="$WORK" GUARD_CMD="$launcher" run_hook "$project/sub" 'git log')"
-mkdir -p "$WORK/flat/skills" && cp -R "$SKILL" "$WORK/flat/skills/break-this-pr"
-expect "launcher, flat plugin layout" 0 "$(CLAUDE_PLUGIN_ROOT="$WORK/flat" GUARD_CMD="$launcher" run_hook "$project" 'git log')"
-# Monitor runs a shell command too, so both hooks must match it as well as Bash.
-for f in "$REPO/hooks/hooks.json" "$SKILL/SKILL.md"; do
-  grep -q 'matcher"*: *"Bash|Monitor"' "$f" || { echo "FAIL: $f: hook matcher isn't \"Bash|Monitor\""; failures=$((failures + 1)); }
-done
+# 3. The plugin hook: it matches Monitor too (it runs shell commands), and runs the guard.
+grep -q '"matcher": "Bash|Monitor"' "$REPO/hooks/hooks.json" || { echo "FAIL: hooks.json matcher isn't Bash|Monitor"; failures=$((failures + 1)); }
 plugin_hook=$(sed -n 's/^ *"command": "\(.*\)",*$/\1/p' "$REPO/hooks/hooks.json" | sed 's/\\"/"/g')
 [ -n "$plugin_hook" ] || { echo "FAIL: no hook command found in hooks/hooks.json"; failures=$((failures + 1)); }
+touch "$project/.claude/review/.active"
 expect "plugin hook, blocked" 2 "$(CLAUDE_PLUGIN_ROOT="$REPO" GUARD_CMD="$plugin_hook" run_hook "$project" 'git reset --hard')"
 expect "plugin hook, allowed" 0 "$(CLAUDE_PLUGIN_ROOT="$REPO" GUARD_CMD="$plugin_hook" run_hook "$project" 'git log')"
-rm "$project/.claude/review/.active"
-expect "launcher, script missing, no marker" 0 "$(CLAUDE_PLUGIN_ROOT="$WORK" GUARD_CMD="$launcher" run_hook "$project" 'git log')"
 
 echo "$passes passed, $failures failed"
 [ "$failures" -eq 0 ]

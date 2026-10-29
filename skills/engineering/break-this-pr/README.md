@@ -11,7 +11,7 @@ gives a merge verdict only when every dimension has evidence.
 | **Eleven dimensions** | Inputs, intent, blast radius, root cause, breaking it, design, simplicity, standards and supply chain, operations, tests and words, verification. |
 | **Executes** | Value-level differential against the base, crossed corpora with ground truth, properties, mutation of changed lines. |
 | **Precision** | A finding stands only if a fresh verifier reproduces it. Nits never block. |
-| **Safe on untrusted PRs** | Rules come from the base tree, harness files are diffed first, head code runs only in the sandbox, without secrets or network. A hook allows only read-only git during a review, including in subagents when installed as a plugin, and a git fingerprint catches what it misses. The hook is a guard rail, not a security boundary. |
+| **Safe on untrusted PRs** | Rules come from the base tree, harness files are diffed first, and head code runs only in the sandbox, without secrets or network. A plugin hook allows only read-only git during a review, and a git fingerprint catches what it misses. The hook is a guard rail, not a security boundary. |
 | **Budgeted** | Depth tiers with time boxes, a checkpoint before the expensive part, and a capped verdict when code can't run. |
 | **Learns** | Escaped defects change the method, not a checklist. |
 
@@ -20,13 +20,11 @@ can take two hours; use it when correctness matters. Its verifiers share one mod
 
 ## What it runs and sends
 
-- **Git guard** (`scripts/guard-git.sh`): runs before each Bash and Monitor command, in subagents too. In a plugin
-  install it's registered for every session; once the skill is used, also from the skill. It does nothing unless
-  a review marker exists. Reads the hook input, runs only `find`, sends nothing.
+- **Git guard** (`scripts/guard-git.sh`): a plugin hook before each Bash and Monitor command, in every session and
+  subagent. It does nothing unless a review marker exists, and sends nothing.
 - **The review:** runs your tests, linters, builds and the code under review locally, only in the sandbox. In
-  your repo it writes only the tests and a temporary marker. Its ledger and scratch files go in
-  `/tmp/claude-<uid>/break-this-pr/<repo>-<path hash>-<PR>/` and are kept, so a later round and the report's
-  trigger commands can use them.
+  your repo it writes only the tests and a temporary marker; its ledger and scratch files go in
+  `/tmp/claude-<uid>/break-this-pr/` and are kept for later rounds.
 - **Forge CLI** (`gh`): fetches the PR and its comments; with `--post`, posts one approved comment.
 - **Official docs** for libraries the change uses.
 
@@ -45,7 +43,7 @@ verdict at NOT YET.
 
 | Argument | Meaning |
 |---|---|
-| `<target>` | PR number, branch or paths. Default: the current branch against its base. A ticket is intent input, not a target. |
+| `<target>` | PR number, branch or paths. Default: the current branch against its base. |
 | `--depth light\|standard\|deep` | Override the depth. Lighter than the skill's choice caps the verdict at NOT YET. |
 | `--background` | Run in a background subagent, no checkpoint. Follow with `/tasks`. |
 | `--yes` | Skip the checkpoint. |
@@ -101,8 +99,7 @@ header "id", observed "id" preceded by a byte-order mark · introduced · reprod
 
 ## Claude Code only
 
-`argument-hint`, `allowed-tools`, `disable-model-invocation` and frontmatter `hooks` aren't in the Agent Skills
-spec. Without the git guard, don't run it on a working copy you care about. Needs Claude Code 2.1.295 or later
-(the hook fails closed with `onFailure`); tested with 2.1.312. If the hook can't find its script, it blocks every
-git command while a marker exists. Copied in as a standalone folder, the skill has no plugin hook, so whether the
-guard covers subagents depends on Claude Code.
+`argument-hint`, `allowed-tools` and `disable-model-invocation` aren't in the Agent Skills spec. Needs Claude Code
+2.1.295 or later (the hook fails closed with `onFailure`); tested with 2.1.312. The git guard ships with the
+plugin: a folder copied into `~/.claude/skills/` has no guard, so don't run it there on a working copy you care
+about.

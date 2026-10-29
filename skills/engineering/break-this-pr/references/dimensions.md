@@ -1,7 +1,6 @@
 # Dimensions D0–D10
 
-A row passes only when its evidence is in the ledger. A row or check the diff can't affect is `n/a`, with the reason
-(SKILL.md §3).
+A row passes only when its evidence is in the ledger, or it's `n/a` with a reason (SKILL.md §3).
 
 ## D0 Inputs
 - **Evidence:** head and base SHAs; changed units (functions, types, constants, config keys, prompts, schemas,

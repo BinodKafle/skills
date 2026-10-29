@@ -3,42 +3,25 @@
 ## 1.3.0 (2026-10-29)
 
 - **break-this-pr:**
-  - **Less waiting, same checks.** A dimension or check the diff can't affect is `n/a`, with the reason from the
-    diff, and doesn't cap the verdict. The depth table says which parts of D4 run at Standard and which only at
-    Deep. Lenses own the reading, and one base test run and one reader search each serve two dimensions.
-  - **Preparation overlaps the checkpoint.** Extracts, the reader search and a smoke run of the base's tests start
-    before the question.
-  - **Only the tests land in your repo.** The ledger and scratch files go in
-    `/tmp/claude-<uid>/break-this-pr/<repo>-<path hash>-<PR>/`, the same path with or without the sandbox, and
-    are kept for the next round and for re-running the report's triggers. The ledger's gitignore check is gone.
-  - **The guard covers subagents in plugin installs.** It's now also a plugin hook (`hooks/hooks.json`), and
-    Claude Code runs plugin hooks inside subagents. Verified in a live session. Like the skill's hook, it fails
-    closed (`onFailure: block`).
-  - **The guard blocks only the reviewing session.** The marker holds its session id, and subagents share it, so
-    other sessions and worktrees in the same repo keep their git.
-  - **The guard blocks git flags that run a program:** `grep -O`, `--open-files-in-pager`, `--upload-pack`,
-    `ls-remote -u` and `--exec`, including abbreviations git accepts (`--op=`, `--u=`). A command over 50 KB
-    that mentions git is blocked, since checking it could outlast the hook's timeout.
-  - **The guard also checks the Monitor tool,** which runs shell commands too, and a line join inside double
-    quotes (`"gi\<newline>t" stash`) no longer hides git from it.
-  - **The git fingerprint is one script call** (`scripts/fingerprint.sh`), pre-allowed with `allowed-tools`. It
-    now also catches changes to the staged state and to untracked files' contents, with one hash per path so a
-    change is tied to its file. A symlink is recorded by its target, so one to `/dev/zero` can't hang it.
-  - **The sandbox settings are spelled out** (`strictAllowlist`, `allowUnsandboxedCommands: false`). Head code
-    still runs only in the sandbox, for every author, and verifiers re-run it only once a subagent's commands
-    are confirmed sandboxed.
-  - The ledger's dimension table and findings are in report format, so the report copies them. The verdict waits
-    for every verifier. Severity gating lives in one place. A ticket is intent input, not a target.
+  - Checks the diff can't affect are `n/a` and don't cap the verdict. Lenses own the reading; one base test run
+    and one reader search each serve two dimensions.
+  - Preparation (extracts, reader search, a base smoke test) runs during the checkpoint.
+  - Only the tests land in your repo. The ledger and scratch files go in `/tmp/claude-<uid>/break-this-pr/` and
+    are kept for the next round.
+  - The git guard is a plugin hook only (`hooks/hooks.json`), so it covers subagents; a skill folder copied in
+    without the plugin has no guard. It also checks the Monitor tool, and blocks only the reviewing session.
+  - The guard blocks git flags that run a program (including abbreviations), quoted line joins that hide `git`,
+    and commands over 50 KB that mention git.
+  - The git fingerprint is one script (`scripts/fingerprint.sh`). It also covers staged changes and each
+    untracked file's contents.
+  - Head code still runs only in the sandbox; the strict sandbox settings are in `references/safety.md`.
+  - The ledger is in report format, the verdict waits for every verifier, and a ticket is intent input, not a
+    target.
 
 ## 1.2.4 (2026-10-29)
 
-- **break-this-pr:** the git guard no longer hangs. On macOS awk, a command with a string ending in `<` or `>`
-  (`"->"`, `'</pre>'`) looped forever while a review marker existed, and each Bash call waited for the 10-minute
-  hook timeout. In real reviews this was more than half the run time.
-  - The guard skips commands that can't contain git.
-  - The hook has a 10-second timeout and fails closed (`onFailure: block`), so a future hang costs seconds
-    and never lets git through. Needs Claude Code 2.1.295 or later.
-  - Guard tests kill a case after 5 seconds, so a hang fails the test and doesn't freeze it.
+- **break-this-pr:** the git guard no longer hangs on macOS awk when a string ends in `<` or `>`. The hook now
+  times out after 10 seconds and fails closed (`onFailure: block`); needs Claude Code 2.1.295 or later.
 
 ## 1.2.3 (2026-10-26)
 

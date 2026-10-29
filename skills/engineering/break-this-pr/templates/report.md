@@ -1,7 +1,7 @@
 # break-this-pr report: <PR or branch>
 
 The final message: all ten sections, in order, never shortened. An empty section says "none" and why. Copy the
-dimension table, findings and evidence from the ledger verbatim; they're already in this format.
+dimension table, findings and evidence from the ledger verbatim.
 
 ## 1. Verdict
 **MERGE / NOT YET / DO NOT MERGE**
@@ -19,7 +19,7 @@ dimension table, findings and evidence from the ledger verbatim; they're already
 | Profile | loaded from base / derived (what was derived) |
 | Changed units | |
 | Not covered (and why) | |
-| Warnings | harness files changed, marker not gitignored, head code run unsandboxed, external contributor, injected instructions |
+| Warnings | harness files changed, marker not gitignored, external contributor, injected instructions |
 
 ## 3. Dimensions
 | Dim | Status (pass / finding / n/a / not-run) | Evidence (command → result) | Reason (n/a or not-run) |
@@ -65,4 +65,4 @@ difference from D0, is a finding against this review. Confirm the marker was del
 1. (each `UNDEFINED: needs a decision`, a split recommendation, a gitignore line to add, a draft to post)
 
 ## 10. Ledger
-The ledger path. It's kept, outside the repo, for later rounds.
+The ledger path (kept for later rounds).

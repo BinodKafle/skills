@@ -27,8 +27,7 @@ jobs:
           fi
           # Unset CI: the first release has no v* tag yet.
           CI= python3 scripts/check.py
-          # Every section since the last release, so a merge that carries two versions (1.2.4 and 1.3.0) keeps both.
-          # The newest must be this version; its heading becomes the release title, older ones keep theirs.
+          # Notes for every version since the last release (one merge can carry two); the newest must be this one.
           last=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)
           awk -v v="$version" -v last="${last#v}" '{ sub(/\r$/, "") }
             /^## / { if ($2 == last) exit; if (n++) print; else if ($2 != v) exit; next } n' CHANGELOG.md > notes.md
