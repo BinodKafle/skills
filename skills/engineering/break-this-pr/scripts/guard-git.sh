@@ -166,6 +166,9 @@ verdict=$(printf '%s' "$command_text" | awk '
     # --output and archive -o write arbitrary files.
     for (j = i + 1; j <= ntok; j++) {
       if (tok[j] ~ /^--output(=|$)/ || (subcmd == "archive" && tok[j] ~ /^-[^-]*o/)) { deny("blocked `git " subcmd " " tok[j] "`: it writes a file"); return }
+      # These name a program for git to run.
+      if (tok[j] ~ /^--(upload-pack|exec|open-files-in-pager)(=|$)/ || (subcmd == "grep" && tok[j] ~ /^-[^-]*O/) ||
+          (subcmd == "ls-remote" && tok[j] ~ /^-[^-]*u/)) { deny("blocked `git " subcmd " " tok[j] "`: it runs a program"); return }
     }
     if (has("status diff diff-tree diff-index diff-files log show shortlog whatchanged rev-parse rev-list merge-base ls-files ls-tree ls-remote cat-file blame annotate grep describe name-rev for-each-ref show-ref cherry range-diff check-ignore check-attr count-objects var version help archive", subcmd)) return
     a = (i < ntok) ? tok[i + 1] : ""

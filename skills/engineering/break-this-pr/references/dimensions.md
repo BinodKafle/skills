@@ -1,6 +1,7 @@
 # Dimensions D0–D10
 
-A row passes only when its evidence is in the ledger.
+A row passes only when its evidence is in the ledger. A row or check the diff can't affect is `n/a`, with the reason
+(SKILL.md §3).
 
 ## D0 Inputs
 - **Evidence:** head and base SHAs; changed units (functions, types, constants, config keys, prompts, schemas,
@@ -22,7 +23,7 @@ A row passes only when its evidence is in the ledger.
   - re-check every reader of a redefined field or rule under its new meaning;
   - a guard added to one sibling is owed by the others.
 
-## D3 Root cause (bug fixes)
+## D3 Root cause (bug fixes; otherwise n/a)
 - **Evidence:** a reproduction on the base; a one-sentence cause written before reading the fix; whether the fix
   removes it or hides the symptom; the sibling search.
 - **Break it:** symptom fixes look like a new guard, a broad try/except, a special case for the reported input, or a
@@ -42,8 +43,9 @@ A row passes only when its evidence is in the ledger.
   duplicates and collisions.
 - **Properties:** only declared exceptions for any input; parts add up to the whole; permutation, duplication,
   round-trip and head or tail noise leave the result unchanged.
-- **Rendered outputs:** render with the real renderer, save an image, look at every visible element.
-- **Corpus** (`corpus.md`) and **mutation** (`mutation.md`), with denominators.
+- **Rendered outputs** (when the change affects one): render with the real renderer, save an image, look at every
+  visible element.
+- **Deep only:** corpus (`corpus.md`) and mutation (`mutation.md`), with denominators.
 
 ## D5 Design
 - **Evidence:** right layer and module per the architecture rules; coupling (private access across modules,
@@ -57,17 +59,19 @@ A row passes only when its evidence is in the ledger.
 - **Break it:** delete it in a prototype. If tests and differential don't change, it's dead.
 
 ## D7 Standards and supply chain
-- **Evidence:** each API checked against the official docs for the repo's pinned version (deprecations, misuse,
-  pitfalls); repo conventions; new lint, format and type diagnostics vs the base, each classified.
-- **Supply chain,** per added or bumped dependency: lockfile diff, new transitive packages, install scripts,
-  maintainer and licence, pinned version, and why it's needed.
+- **Evidence:** each API the change starts using or uses differently, checked against the official docs for the
+  repo's pinned version (deprecations, misuse, pitfalls); repo conventions; new lint, format and type diagnostics
+  vs the base, each classified.
+- **Supply chain** (n/a without a manifest or lockfile change), per added or bumped dependency: lockfile diff, new
+  transitive packages, install scripts, maintainer and licence, pinned version, and why it's needed.
 
 ## D8 Operational
 - **Messages:** every user-facing message and log line is an output; assert each fact it states.
 - **Errors:** no swallowed errors, or log-only or TODO handlers on a failure path.
 - **Security:** inputs, injection, auth, secrets, sandbox boundaries.
 - **Performance:** measured at realistic sizes, including any new full read or copy; a verdict on every new regex.
-- **Environment:** same results across thread counts, locale, platform and file order; run at CI's settings.
+- **Environment** (when the change touches concurrency, locale, ordering or platform code): same results across
+  thread counts, locale, platform and file order; run at CI's settings.
 - **Rollout:** migrations up and down, deploy steps, config defaults, flags, revert, effect on existing users and
   data.
 

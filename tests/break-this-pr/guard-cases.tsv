@@ -240,3 +240,11 @@
 2	g\it stash
 2	"g"it stash
 2	g''it stash
+# Read-only subcommands with a flag that runs a program.
+2	git grep -Ovim foo
+2	git grep --open-files-in-pager=sh foo
+2	git ls-remote --upload-pack=sh origin
+2	git ls-remote -u sh origin
+2	git archive --remote=origin --exec=sh HEAD
+0	git grep -n foo -- '*.py'
+0	git ls-remote origin

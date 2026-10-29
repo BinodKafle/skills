@@ -26,6 +26,8 @@ jobs:
         run: python3 scripts/check.py
       - name: break-this-pr git guard
         run: sh tests/break-this-pr/guard-git.test.sh
+      - name: break-this-pr git fingerprint
+        run: sh tests/break-this-pr/fingerprint.test.sh
       - name: Plugin and marketplace manifests validate
         if: matrix.os == 'ubuntu-latest'
         run: |

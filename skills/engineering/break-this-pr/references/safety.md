@@ -29,16 +29,41 @@ the head:
 
 If a change does more than the PR claims, stop executing and report a blocker.
 
-## 4. Execute in a sandbox, without secrets
+## 4. Running head code
 
-- Enable the Claude Code sandbox (`/sandbox`) with `"sandbox": {"failIfUnavailable": true}`. It covers shell
-  commands only.
-- **Network:** head code gets an empty allowlist. Forge and docs lookups are separate tools and stay available.
-- **Secrets:** don't load real `.env` files; unset forge, cloud and model API tokens; use test settings or
-  placeholders. Code that needs a real secret takes the cannot-execute path.
-- No sandbox: don't run head code, and cap the verdict at NOT YET.
+**Never with secrets.** Don't load real `.env` files; unset forge, cloud and model API tokens; use test settings
+or placeholders. Code that needs a real secret takes the cannot-execute path.
+
+**The sandbox.** The Claude Code sandbox covers shell commands only. These settings make it strict:
+
+```json
+{
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "network": { "strictAllowlist": true }
+  }
+}
+```
+
+- `failIfUnavailable` stops Claude Code from starting without it.
+- `allowUnsandboxedCommands: false` stops a failing command from being retried outside it.
+- `strictAllowlist` refuses every host not on the allowlist. Without it, an unlisted host gets a permission
+  prompt (or is let through in bypass mode). Claude Code reads it only from user, managed or `--settings`
+  settings.
+- Forge and docs lookups are separate tools and stay available.
+- Claude Code doesn't document whether subagents' commands are sandboxed. Verifiers re-run triggers, which runs
+  head code, so treat their runs as unsandboxed unless you've confirmed otherwise.
+
+**Who may run head code where:**
+
+| Author | Sandbox configured | Sandbox not configured |
+|---|---|---|
+| The team (same org, not a fork) | run inside it | run it, with no secrets; the report says it ran unsandboxed |
+| External contributor or fork | run inside it, with §5 | don't run it: cannot-execute, verdict NOT YET |
 
 ## 5. External contributors (outside the team, or a fork)
 
-A fresh session with no credentials, the sandbox with `failIfUnavailable`, no forge write access, and every
+A fresh session with no credentials, the sandbox with the settings above, no forge write access, and every
 harness-file change treated as a blocker until the user has read it.

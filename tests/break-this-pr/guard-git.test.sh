@@ -96,6 +96,9 @@ expect "launcher, script missing, not git" 0 "$(CLAUDE_PLUGIN_ROOT="$WORK" GUARD
 expect "launcher, script missing, project subfolder" 2 "$(CLAUDE_PROJECT_DIR="$project/sub" CLAUDE_PLUGIN_ROOT="$WORK" GUARD_CMD="$launcher" run_hook "$project/sub" 'git log')"
 mkdir -p "$WORK/flat/skills" && cp -R "$SKILL" "$WORK/flat/skills/break-this-pr"
 expect "launcher, flat plugin layout" 0 "$(CLAUDE_PLUGIN_ROOT="$WORK/flat" GUARD_CMD="$launcher" run_hook "$project" 'git log')"
+plugin_hook=$(sed -n 's/^ *"command": "\(.*\)",*$/\1/p' "$REPO/hooks/hooks.json" | sed 's/\\"/"/g')
+expect "plugin hook, blocked" 2 "$(CLAUDE_PLUGIN_ROOT="$REPO" GUARD_CMD="$plugin_hook" run_hook "$project" 'git reset --hard')"
+expect "plugin hook, allowed" 0 "$(CLAUDE_PLUGIN_ROOT="$REPO" GUARD_CMD="$plugin_hook" run_hook "$project" 'git log')"
 rm "$project/.claude/review/.active"
 expect "launcher, script missing, no marker" 0 "$(CLAUDE_PLUGIN_ROOT="$WORK" GUARD_CMD="$launcher" run_hook "$project" 'git log')"
 

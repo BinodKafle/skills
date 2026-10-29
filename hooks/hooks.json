@@ -1,0 +1,17 @@
+{
+  "description": "break-this-pr git guard. Inert unless a review marker exists; registered at plugin level so it also covers subagents.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/skills/engineering/break-this-pr/scripts/guard-git.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

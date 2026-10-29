@@ -1,7 +1,7 @@
 # break-this-pr report: <PR or branch>
 
-The final message: all ten sections, in order, never shortened. An empty section says "none" and why. Copy
-findings and evidence from the ledger verbatim.
+The final message: all ten sections, in order, never shortened. An empty section says "none" and why. Copy the
+dimension table, findings and evidence from the ledger verbatim; they're already in this format.
 
 ## 1. Verdict
 **MERGE / NOT YET / DO NOT MERGE**
@@ -19,10 +19,10 @@ findings and evidence from the ledger verbatim.
 | Profile | loaded from base / derived (what was derived) |
 | Changed units | |
 | Not covered (and why) | |
-| Warnings | harness files changed, ledger or marker not gitignored, external contributor, injected instructions |
+| Warnings | harness files changed, marker not gitignored, head code run unsandboxed, external contributor, injected instructions |
 
 ## 3. Dimensions
-| Dim | Status (pass / finding / not-run) | Evidence (command → result) | Not-run reason |
+| Dim | Status (pass / finding / n/a / not-run) | Evidence (command → result) | Reason (n/a or not-run) |
 |---|---|---|---|
 | D0 Inputs | | | |
 | D1 Intent | | | |
@@ -58,11 +58,11 @@ Each with its minimal input and observed output. Rejected findings go in section
 State that the verifiers share one model family.
 
 ## 8. Files this review wrote
-`git status --porcelain` plus scratch paths. Anything beyond tests, the ledger and scratch files, or any git
-fingerprint difference from D0, is a finding against this review. Confirm the marker was deleted.
+The tests written in the repo, and the review folder. Anything else in the repo, or any git fingerprint
+difference from D0, is a finding against this review. Confirm the marker and the scratch folder were deleted.
 
 ## 9. Decisions for the user
 1. (each `UNDEFINED: needs a decision`, a split recommendation, a gitignore line to add, a draft to post)
 
 ## 10. Ledger
-Ledger path, and raw verifier log paths.
+The ledger path. It's kept, outside the repo, for later rounds.
