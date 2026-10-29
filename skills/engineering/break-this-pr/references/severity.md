@@ -10,6 +10,6 @@ By impact on users and data, not by kind of code.
 - **Nit:** style, naming or wording with no behaviour effect.
 
 ## Gating
-- **DO NOT MERGE:** any blocker, or a major introduced by this change.
+The verdict rules are in SKILL.md §8. Two notes on applying them:
 - Pre-existing majors become follow-ups unless the change makes them worse.
 - Minors and nits never block.

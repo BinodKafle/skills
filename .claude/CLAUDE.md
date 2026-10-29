@@ -1,7 +1,7 @@
 # Working in this repo
 
-Before every commit, run `python3 scripts/check.py`, plus `sh tests/break-this-pr/guard-git.test.sh` if you touched
-the guard.
+Before every commit, run `python3 scripts/check.py`, plus the tests in `tests/break-this-pr/` if you touched its
+scripts (`guard-git.test.sh`, `fingerprint.test.sh`).
 
 ## Layout
 
@@ -31,8 +31,8 @@ repo-specific config, such as a review profile.
 
 ## Releasing
 
-- A change under a promoted bucket or `.claude-plugin/` bumps `version` in `plugin.json` (semver) in the same
-  commit, with a matching `CHANGELOG.md` heading.
+- A change under a promoted bucket, `.claude-plugin/` or `hooks/` bumps `version` in `plugin.json` (semver) in the
+  same commit, with a matching `CHANGELOG.md` heading.
 - The release workflow tags `v*` when a new version reaches `main`; `check.py` compares against that tag. Don't tag
   by hand.
 - After touching a manifest, `claude plugin validate . --strict` must pass with no warnings. That's why this file

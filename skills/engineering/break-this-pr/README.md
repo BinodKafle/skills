@@ -11,7 +11,7 @@ gives a merge verdict only when every dimension has evidence.
 | **Eleven dimensions** | Inputs, intent, blast radius, root cause, breaking it, design, simplicity, standards and supply chain, operations, tests and words, verification. |
 | **Executes** | Value-level differential against the base, crossed corpora with ground truth, properties, mutation of changed lines. |
 | **Precision** | A finding stands only if a fresh verifier reproduces it. Nits never block. |
-| **Safe on untrusted PRs** | Rules come from the base tree, harness files are diffed first, head code runs sandboxed without secrets or network. A hook allows only read-only git during a review, and a git fingerprint catches what it misses. The hook is a guard rail, not a security boundary; subagents follow it by instruction only. |
+| **Safe on untrusted PRs** | Rules come from the base tree, harness files are diffed first, and head code runs only in the sandbox, without secrets or network. A plugin hook allows only read-only git during a review, and a git fingerprint catches what it misses. The hook is a guard rail, not a security boundary. |
 | **Budgeted** | Depth tiers with time boxes, a checkpoint before the expensive part, and a capped verdict when code can't run. |
 | **Learns** | Escaped defects change the method, not a checklist. |
 
@@ -20,10 +20,11 @@ can take two hours; use it when correctness matters. Its verifiers share one mod
 
 ## What it runs and sends
 
-- **Git guard** (`scripts/guard-git.sh`): runs before each Bash command once the skill is used. Reads the hook
-  input, runs only `find`, sends nothing.
-- **The review:** runs your tests, linters, builds and the code under review locally (sandboxed if enabled). Writes
-  tests, a ledger under `.claude/review/`, and scratch files outside the repo.
+- **Git guard** (`scripts/guard-git.sh`): a plugin hook before each Bash and Monitor command, in every session and
+  subagent. It does nothing unless a review marker exists, and sends nothing.
+- **The review:** runs your tests, linters, builds and the code under review locally, only in the sandbox. In
+  your repo it writes only the tests and a temporary marker; its ledger and scratch files go in
+  `/tmp/claude-<uid>/break-this-pr/` and are kept for later rounds.
 - **Forge CLI** (`gh`): fetches the PR and its comments; with `--post`, posts one approved comment.
 - **Official docs** for libraries the change uses.
 
@@ -34,14 +35,15 @@ It reads no credentials; the forge CLI uses its own login.
 Install the plugin (see the [repo README](../../../README.md)) and run `/binodkafle-skills:break-this-pr`, or copy
 this folder to `~/.claude/skills/` and run `/break-this-pr`. It runs only when you invoke it.
 
-**Before reviewing code you didn't write,** enable the Claude Code sandbox with `failIfUnavailable`
-([references/safety.md](./references/safety.md)).
+**Before reviewing,** enable the Claude Code sandbox with the strict settings in
+[references/safety.md](./references/safety.md). Without it, the review doesn't run the PR's code and caps the
+verdict at NOT YET.
 
 ## Usage
 
 | Argument | Meaning |
 |---|---|
-| `<target>` | PR number, ticket, branch or paths. Default: the current branch against its base. |
+| `<target>` | PR number, branch or paths. Default: the current branch against its base. |
 | `--depth light\|standard\|deep` | Override the depth. Lighter than the skill's choice caps the verdict at NOT YET. |
 | `--background` | Run in a background subagent, no checkpoint. Follow with `/tasks`. |
 | `--yes` | Skip the checkpoint. |
@@ -74,10 +76,9 @@ header "id", observed "id" preceded by a byte-order mark · introduced · reprod
 
 1. Copy [templates/review-profile.md](./templates/review-profile.md) to `.claude/review-profile.md` and fill it in.
    Without it, the skill derives one from `CLAUDE.md`, `AGENTS.md`, CI and build files.
-2. Gitignore the review files (the skill warns otherwise):
+2. Gitignore the review marker (the skill warns otherwise):
 
    ```gitignore
-   .claude/review/ledgers/
    .claude/review/.active
    ```
 
@@ -92,12 +93,13 @@ header "id", observed "id" preceded by a byte-order mark · introduced · reprod
 | A command that doesn't change git state is blocked | The hook matches text, so `git reset` inside a string is blocked. Rephrase it. |
 | An alias or unusual subcommand is blocked | Only the read-only git in `scripts/guard-git.sh` runs during a review. Use the plain command. |
 | The report says it couldn't delete the marker | Auto mode can refuse the delete. Run `! rm <marker path>`. |
-| Sandbox errors | Fix the sandbox, or accept a NOT YET verdict. Don't disable it for untrusted PRs. |
+| Sandbox errors | Fix the sandbox, or accept a NOT YET verdict. Don't disable it. |
 | D0 can't fetch reviews | Check `gh auth status`. |
 | No checkpoint in a headless run | Pass `--yes`. |
 
 ## Claude Code only
 
-`argument-hint`, `disable-model-invocation` and frontmatter `hooks` aren't in the Agent Skills spec. Without the
-git guard, don't run it on a working copy you care about. Tested with Claude Code 2.1.301. If the hook can't find
-its script, it blocks every git command while a marker exists.
+`argument-hint`, `allowed-tools` and `disable-model-invocation` aren't in the Agent Skills spec. Needs Claude Code
+2.1.295 or later (the hook fails closed with `onFailure`); tested with 2.1.312. The git guard ships with the
+plugin: a folder copied into `~/.claude/skills/` has no guard, so don't run it there on a working copy you care
+about.

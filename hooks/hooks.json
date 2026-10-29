@@ -1,0 +1,18 @@
+{
+  "description": "break-this-pr git guard. Does nothing unless a review marker exists.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Monitor",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/skills/engineering/break-this-pr/scripts/guard-git.sh\"",
+            "timeout": 10,
+            "onFailure": "block"
+          }
+        ]
+      }
+    ]
+  }
+}

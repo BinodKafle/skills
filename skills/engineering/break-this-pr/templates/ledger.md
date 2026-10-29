@@ -1,6 +1,7 @@
 # Review ledger: <PR or branch>
 
-Every row is filled, or marked `not-run` with the reason. A verdict without a complete ledger is invalid.
+Every row is filled, or marked `n/a` or `not-run` with the reason. A verdict without a complete ledger is
+invalid. The report copies the dimension table and findings as they are.
 
 ## Scope
 | Field | Value |
@@ -9,14 +10,17 @@ Every row is filled, or marked `not-run` with the reason. A verdict without a co
 | Base SHA | |
 | Depth and why | |
 | Profile | loaded from base / derived (list what was derived) |
+| Test command and environment that worked | |
 | Outside reviews fetched | count, or "local branch, none" |
 | Changed units | |
 | Removals (unit → what it did → where it lives now) | |
 | Not reviewed (and why) | |
 | Harness files changed in head | none / list (each is a finding) |
+| Review folder | |
+| Marker (absolute path) | |
 
 ## Dimensions
-| Dim | Status (pass / finding / not-run) | Evidence (command → result) | Not-run reason |
+| Dim | Status (pass / finding / n/a / not-run) | Evidence (command → result) | Reason (n/a or not-run) |
 |---|---|---|---|
 | D0 Inputs | | | |
 | D1 Intent | | | |
@@ -53,21 +57,19 @@ Undeclared changes (differential differences with no row above):
 |---|---|---|---|
 
 ## Findings
-`id · severity · file:line · trigger (command) · expected vs observed · introduced / pre-existing · reproduced by ·
-status (open / fixed@SHA / rejected: why / stale)`
+Blockers first, each with its minimal input and observed output:
+
+    id · severity · file:line · trigger (command) · expected vs observed · introduced / pre-existing · reproduced by
+
+Status per finding, for later rounds: open / fixed@SHA / rejected: why / stale.
 
 ## Verifier summary
 | Verifier (model) | Confirmed | Rejected (why) | New findings |
 |---|---|---|---|
 
-## Files this review wrote
-`git status --porcelain` plus scratch paths.
-
-## Marker
-Absolute path:
-
 ## Git fingerprint
-Output at D0 and before the report, then each difference and whether this review's files explain it.
+`fingerprint.sh` output at D0 and before the report, then each difference and whether this review's files explain
+it.
 
 ```
 D0:

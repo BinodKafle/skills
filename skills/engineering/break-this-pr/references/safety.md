@@ -29,16 +29,31 @@ the head:
 
 If a change does more than the PR claims, stop executing and report a blocker.
 
-## 4. Execute in a sandbox, without secrets
+## 4. Running head code
 
-- Enable the Claude Code sandbox (`/sandbox`) with `"sandbox": {"failIfUnavailable": true}`. It covers shell
-  commands only.
-- **Network:** head code gets an empty allowlist. Forge and docs lookups are separate tools and stay available.
-- **Secrets:** don't load real `.env` files; unset forge, cloud and model API tokens; use test settings or
-  placeholders. Code that needs a real secret takes the cannot-execute path.
-- No sandbox: don't run head code, and cap the verdict at NOT YET.
+Head code runs only inside the Claude Code sandbox (it covers shell commands only), for every author, with these
+settings in user, managed or `--settings` config (Claude Code reads `strictAllowlist` only from there):
+
+```json
+{
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "network": { "strictAllowlist": true }
+  }
+}
+```
+
+- **No sandbox:** don't run head code; take the cannot-execute path and cap the verdict at NOT YET.
+- **No secrets:** don't load real `.env` files; unset forge, cloud and model API tokens; use placeholders. Code
+  that needs a real secret is cannot-execute.
+- **No network:** head code gets an empty allowlist. Forge and docs lookups are separate tools.
+- **Verifiers** re-run head code only after you confirm a subagent's commands are sandboxed (a write outside the
+  working directory is refused). Otherwise they check the recorded evidence, and the report says so.
 
 ## 5. External contributors (outside the team, or a fork)
 
-A fresh session with no credentials, the sandbox with `failIfUnavailable`, no forge write access, and every
-harness-file change treated as a blocker until the user has read it.
+A fresh session with no credentials, the sandbox above, no forge write access, and every harness-file change a
+blocker until the user has read it. A branch or path target has no known author; treat it as external unless
+the user says it's the team's.

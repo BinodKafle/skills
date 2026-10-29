@@ -20,11 +20,13 @@ json_string() {
     BEGIN { RS = "\001" }
     {
       if (!match($0, "\"" key "\"[ \t\r\n]*:[ \t\r\n]*\"")) exit 1
-      # Print as we go (string building is slow); on exit 1 the caller discards the output.
-      n = split(substr($0, RSTART + RLENGTH), ch, "")
+      # Split only up to the closing quote, so reading a short value (cwd) skips the rest of a large input.
+      s = substr($0, RSTART + RLENGTH)
+      if (!match(s, /^([^"\\]|\\.)*"/)) exit 1
+      # Print as we go (string building is slow).
+      n = split(substr(s, 1, RLENGTH - 1), ch, "")
       for (i = 1; i <= n; i++) {
         c = ch[i]
-        if (c == "\"") exit 0
         if (c == "\\") {
           i++; c = ch[i]
           if (c == "n") c = "\n"
@@ -37,18 +39,21 @@ json_string() {
         }
         printf "%s", c
       }
-      exit 1
+      exit 0
     }'
 }
 
 cwd=$(json_string cwd) || cwd=$PWD
+session=$(json_string session_id) || session=
 
-# The marker is at the repo (or superproject) root, so walk up from the project dir and cwd.
+# The marker is at the repo (or superproject) root, so walk up. It names the reviewing session (subagents share
+# its id); an empty marker blocks every session.
 marker=
 for dir in "${CLAUDE_PROJECT_DIR:-}" "$cwd"; do
   while [ -n "$dir" ] && [ -z "$marker" ]; do
     if [ -e "$dir/.claude/review/.active" ] && [ -n "$(find "$dir/.claude/review/.active" -mmin -"$MAX_AGE_MINUTES" 2>/dev/null)" ]; then
-      marker="$dir/.claude/review/.active"
+      owner=; IFS= read -r owner < "$dir/.claude/review/.active"
+      [ -z "$owner" ] || [ "$owner" = "$session" ] && marker="$dir/.claude/review/.active"
     fi
     dir=${dir%/*}
   done
@@ -63,6 +68,13 @@ block() {
 }
 
 command_text=$(json_string command) || block "couldn't read the command from the hook input"
+
+# No git once quotes, backslashes and line breaks are gone (they can split the word: g\it, "g"it): nothing to check.
+printf '%s' "$command_text" | tr -d '\\"\047\n' | grep -qi git || exit 0
+
+# Parsing is slow on huge input in macOS awk, and the hook times out at 10 s.
+[ "${#command_text}" -le 50000 ] ||
+  block "the command is over 50 KB, too long to check; write large data with a file tool, not in a shell command"
 
 verdict=$(printf '%s' "$command_text" | awk '
   BEGIN { RS = "\001" }
@@ -97,7 +109,7 @@ verdict=$(printf '%s' "$command_text" | awk '
       if (c == "\"") {
         q = ""
         for (i++; i <= n && ch[i] != "\""; i++) {
-          if (ch[i] == "\\" && i < n) i++
+          if (ch[i] == "\\" && i < n) { i++; if (ch[i] == "\n") continue }  # backslash-newline joins lines here too
           q = q ch[i]
         }
         cur = cur q; in_token = 1; queue_nested(q); continue
@@ -106,7 +118,8 @@ verdict=$(printf '%s' "$command_text" | awk '
       if (c == "<" || c == ">") {
         if (cur ~ /^[0-9]+$/) { cur = ""; in_token = 0 }  # the fd number in 2>
         flush_token()
-        while (index("<>&|", ch[i + 1])) i++  # >>, >&, <&, >|, <<
+        # i < n: macOS awk finds "" at index 1, so a trailing > looped forever.
+        while (i < n && index("<>&|", ch[i + 1])) i++  # >>, >&, <&, >|, <<
         redirect = 1; continue
       }
       if (c == ";" || c == "&" || c == "|" || c == "(" || c == ")" || c == "`" || c == "\n") {
@@ -147,6 +160,14 @@ verdict=$(printf '%s' "$command_text" | awk '
 
   function deny(why) { if (verdict == "") verdict = why }
   function has(set, t) { return index(" " set " ", " " t " ") > 0 }
+  # git accepts any unambiguous prefix of a long option, so `--op=` means `--open-files-in-pager=`.
+  function long_prefix_of(t, names,   o, k, n, list) {
+    if (t !~ /^--[^=]/) return 0
+    o = substr(t, 3); k = index(o, "="); if (k) o = substr(o, 1, k - 1)
+    n = split(names, list, " ")
+    for (k = 1; k <= n; k++) if (index(list[k], o) == 1) return 1
+    return 0
+  }
 
   function check_git(i, xargs,   subcmd, j, a, nonflag, listish, dst) {
     while (i <= ntok && tok[i] ~ /^-/) {
@@ -162,6 +183,9 @@ verdict=$(printf '%s' "$command_text" | awk '
     # --output and archive -o write arbitrary files.
     for (j = i + 1; j <= ntok; j++) {
       if (tok[j] ~ /^--output(=|$)/ || (subcmd == "archive" && tok[j] ~ /^-[^-]*o/)) { deny("blocked `git " subcmd " " tok[j] "`: it writes a file"); return }
+      # These name a program for git to run.
+      if (long_prefix_of(tok[j], "upload-pack exec open-files-in-pager") || (subcmd == "grep" && tok[j] ~ /^-[^-]*O/) ||
+          (subcmd == "ls-remote" && tok[j] ~ /^-[^-]*u/)) { deny("blocked `git " subcmd " " tok[j] "`: it runs a program"); return }
     }
     if (has("status diff diff-tree diff-index diff-files log show shortlog whatchanged rev-parse rev-list merge-base ls-files ls-tree ls-remote cat-file blame annotate grep describe name-rev for-each-ref show-ref cherry range-diff check-ignore check-attr count-objects var version help archive", subcmd)) return
     a = (i < ntok) ? tok[i + 1] : ""

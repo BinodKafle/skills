@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.3.0 (2026-10-29)
+
+- **break-this-pr:**
+  - Checks the diff can't affect are `n/a` and don't cap the verdict. Lenses own the reading; one base test run
+    and one reader search each serve two dimensions.
+  - Preparation (extracts, reader search, a base smoke test) runs during the checkpoint.
+  - Only the tests land in your repo. The ledger and scratch files go in `/tmp/claude-<uid>/break-this-pr/` and
+    are kept for the next round.
+  - The git guard is a plugin hook only (`hooks/hooks.json`), so it covers subagents; a skill folder copied in
+    without the plugin has no guard. It also checks the Monitor tool, and blocks only the reviewing session.
+  - The guard blocks git flags that run a program (including abbreviations), quoted line joins that hide `git`,
+    and commands over 50 KB that mention git.
+  - The git fingerprint is one script (`scripts/fingerprint.sh`). It also covers staged changes and each
+    untracked file's contents.
+  - Head code still runs only in the sandbox; the strict sandbox settings are in `references/safety.md`.
+  - The ledger is in report format, the verdict waits for every verifier, and a ticket is intent input, not a
+    target.
+
+## 1.2.4 (2026-10-29)
+
+- **break-this-pr:** the git guard no longer hangs on macOS awk when a string ends in `<` or `>`. The hook now
+  times out after 10 seconds and fails closed (`onFailure: block`); needs Claude Code 2.1.295 or later.
+
 ## 1.2.3 (2026-10-26)
 
 - **break-this-pr:** the checkpoint labels the time box as a ceiling and gives a size-based time estimate.
