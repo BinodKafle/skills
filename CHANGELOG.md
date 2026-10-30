@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.1 (2026-10-30)
+
+- **break-this-pr:** team PRs no longer need the sandbox to run head code, so a review no longer stops to ask
+  about it. The no-secrets and no-network rules still apply.
+  - "Team" is checked on the forge: the head repo is the base repo and the author is an owner, member or
+    collaborator. Anything else, or a failed lookup, is external and still requires the strict sandbox.
+  - When the sandbox is on and blocks a tool (a cache dir, a read-deny rule that hits library files), the review
+    works around it once inside the sandbox. It never leaves the sandbox without asking you.
+
 ## 1.4.0 (2026-10-30)
 
 - **break-this-pr:**
