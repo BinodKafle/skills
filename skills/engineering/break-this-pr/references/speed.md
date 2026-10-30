@@ -1,7 +1,8 @@
 # Speed without dropping checks
 
-Cut waiting and repeated work; never drop a check that applies. SKILL.md covers `n/a` (§3), preparing during the
-checkpoint, and runs that serve two dimensions (§6).
+Cut waiting and repeated work; never drop a check that applies. SKILL.md covers `n/a` and the risk map tiers
+(§3), preparing during the checkpoint, and runs that serve two dimensions (§6). The tiers are the main saving:
+corpus and mutation run only on Verify units.
 
 - **Parallelize.** Run lenses, base and head sweeps, fuzz runs and environment variants as background jobs, and keep
   reasoning meanwhile.

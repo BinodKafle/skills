@@ -1,6 +1,8 @@
 # Dimensions D0–D10
 
-A row passes only when its evidence is in the ledger, or it's `n/a` with a reason (SKILL.md §3).
+A row passes only when its evidence is in the ledger, or it's `n/a` with a reason (SKILL.md §3). Each dimension
+runs on a unit at that unit's tier (SKILL.md §3): Verify gets the executed checks below, Check gets at least one,
+Skim gets a read.
 
 ## D0 Inputs
 - **Evidence:** head and base SHAs; changed units (functions, types, constants, config keys, prompts, schemas,
@@ -40,6 +42,9 @@ A row passes only when its evidence is in the ledger, or it's `n/a` with a reaso
 - **Hostility:** wrong types, empty, null, NaN, ±infinity, negative zero, precision edges, huge values, Unicode.
   Data that becomes an identifier (column names, keys, paths, expressions) gets pattern characters, empty strings,
   duplicates and collisions.
+- **State and time:** time zones, DST changes, leap days, clock skew; ordering and duplicates; retries and
+  idempotency; partial failure and rollback; pagination edges; concurrent writers; the permission matrix (each
+  role against each action).
 - **Properties:** only declared exceptions for any input; parts add up to the whole; permutation, duplication,
   round-trip and head or tail noise leave the result unchanged.
 - **Rendered outputs** (when the change affects one): render with the real renderer, save an image, look at every
@@ -75,6 +80,8 @@ A row passes only when its evidence is in the ledger, or it's `n/a` with a reaso
   data.
 
 ## D9 Tests and words
+- **Test diff** (every depth): deleted or skipped tests, removed or loosened assertions, widened tolerances,
+  changed expected values, new mocks over the code under test. Each is a finding unless the intent explains it.
 - **Tests:** fail on the base, pass on the head, assert values (not shapes) and each arranged failure. Check the
   mutation survivors.
 - **Ripple:** after a deletion or redefinition, search code, tests, comments, docs and the PR text for the old name

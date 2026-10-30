@@ -13,3 +13,5 @@ By impact on users and data, not by kind of code.
 The verdict rules are in SKILL.md §8. Two notes on applying them:
 - Pre-existing majors become follow-ups unless the change makes them worse.
 - Minors and nits never block.
+- A `read` finding (code couldn't run) blocks only as a verifier-confirmed blocker; otherwise the verdict is
+  capped at NOT YET.
