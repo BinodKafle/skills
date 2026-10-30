@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.4.0 (2026-10-30)
+
+- **break-this-pr:**
+  - Risk map: each changed unit gets a tier (Verify, Check, Skim) from the intent and what it controls. Corpus and
+    mutation run only on Verify units, so trivial parts of a risky PR no longer cost a Deep run. Leads and failed
+    cheap proofs promote a unit; nothing demotes one. Checks a unit's tier doesn't call for are `n/a`.
+  - New `references/pr-types.md`: what to verify, what to skim and which edge cases to try for 16 PR types.
+  - D4 adds state and time edge cases (time zones, retries, ordering, partial failure, concurrency, permissions).
+  - The test diff (weakened or removed tests and assertions) runs at every depth, including Light.
+  - When code can't run, the review still reads every unit. Findings are labelled `read`; a verifier-confirmed
+    `read` blocker gives DO NOT MERGE, anything else caps at NOT YET.
+  - Standard runs two lenses (diff-only, intent-only); the design and ops lenses run at Deep only.
+
 ## 1.3.0 (2026-10-29)
 
 - **break-this-pr:**
