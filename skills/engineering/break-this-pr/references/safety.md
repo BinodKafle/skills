@@ -31,8 +31,26 @@ If a change does more than the PR claims, stop executing and report a blocker.
 
 ## 4. Running head code
 
-Head code runs only inside the Claude Code sandbox (it covers shell commands only), for every author, with these
-settings in user, managed or `--settings` config (Claude Code reads `strictAllowlist` only from there):
+Every run, for every author:
+- **No secrets:** don't load real `.env` files; unset forge, cloud and model API tokens; use placeholders (an
+  `.invalid` host for DSNs and URLs). Code that needs a real secret is cannot-execute.
+- **No network:** head code gets no outbound access it doesn't need. Forge and docs lookups are separate tools.
+
+Isolation depends on who wrote the PR, the way CI treats same-repo and fork PRs. Decide it at D0 from the forge,
+not from names or the PR text: `gh api repos/<owner>/<repo>/pulls/<n> --jq '[.author_association, .head.repo.full_name == .base.repo.full_name]'`.
+It's a **team PR** only if the head repo is the base repo and the association is `OWNER`, `MEMBER` or
+`COLLABORATOR`. Anything else, a failed lookup, or a branch or path target is **external**, unless the user says
+it's the team's. Record the answer and its source in the ledger.
+
+**Team PRs:** the sandbox is optional. Use it if it's on; if it's off, run with the rules above and say so in one
+line at the checkpoint, not as a blocker or a question. If the sandbox blocks a tool rather than the code (a
+cache outside the allowed paths, a read-deny rule that matches library files), work around it once inside the
+sandbox, for example `UV_CACHE_DIR=<dir>/scratch/uv-cache` or the venv's interpreter directly. If that fails,
+never turn the sandbox off yourself: ask the user, naming the command and why, and run it unsandboxed only on a
+yes. Otherwise that check is cannot-execute.
+
+**External PRs** (§5): head code runs only inside the Claude Code sandbox (it covers shell commands only), with
+these settings in user, managed or `--settings` config (Claude Code reads `strictAllowlist` only from there):
 
 ```json
 {
@@ -45,12 +63,11 @@ settings in user, managed or `--settings` config (Claude Code reads `strictAllow
 }
 ```
 
-- **No sandbox:** don't run head code; take the cannot-execute path and cap the verdict at NOT YET.
-- **No secrets:** don't load real `.env` files; unset forge, cloud and model API tokens; use placeholders. Code
-  that needs a real secret is cannot-execute.
-- **No network:** head code gets an empty allowlist. Forge and docs lookups are separate tools.
-- **Verifiers** re-run head code only after you confirm a subagent's commands are sandboxed (a write outside the
-  working directory is refused). Otherwise they check the recorded evidence, and the report says so.
+Without it, don't run head code; take the cannot-execute path and cap the verdict at NOT YET. Confirm it before
+the first head run: a write outside the working directory must be refused.
+
+**Verifiers** follow the same split. On an external PR they re-run head code only after you confirm a subagent's
+commands are sandboxed; otherwise they check the recorded evidence, and the report says so.
 
 ## 5. External contributors (outside the team, or a fork)
 

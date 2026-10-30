@@ -11,7 +11,7 @@ gives a merge verdict only when every dimension has evidence.
 | **Eleven dimensions** | Inputs, intent, blast radius, root cause, breaking it, design, simplicity, standards and supply chain, operations, tests and words, verification. |
 | **Executes** | Value-level differential against the base, crossed corpora with ground truth, properties, mutation of changed lines. |
 | **Precision** | A finding stands only if a fresh verifier reproduces it. Nits never block. |
-| **Safe on untrusted PRs** | Rules come from the base tree, harness files are diffed first, and head code runs only in the sandbox, without secrets or network. A plugin hook allows only read-only git during a review, and a git fingerprint catches what it misses. The hook is a guard rail, not a security boundary. |
+| **Safe on untrusted PRs** | Rules come from the base tree, harness files are diffed first, and head code runs without secrets or network, and only in the sandbox for external PRs. A plugin hook allows only read-only git during a review, and a git fingerprint catches what it misses. The hook is a guard rail, not a security boundary. |
 | **Budgeted** | A risk map tiers each changed unit (Verify, Check, Skim) from the PR's intent, so the heavy checks run only where a bug would hurt. Time boxes, and a checkpoint that shows the map before the expensive part. |
 | **Any PR type** | A playbook for 16 PR types, from dependency bumps to migrations, UI and prompts. When code can't run, it still reviews by reading and labels those findings. |
 | **Learns** | Escaped defects change the method, not a checklist. |
@@ -23,7 +23,7 @@ can take two hours; use it when correctness matters. Its verifiers share one mod
 
 - **Git guard** (`scripts/guard-git.sh`): a plugin hook before each Bash and Monitor command, in every session and
   subagent. It does nothing unless a review marker exists, and sends nothing.
-- **The review:** runs your tests, linters, builds and the code under review locally, only in the sandbox. In
+- **The review:** runs your tests, linters, builds and the code under review locally, in the sandbox when it is on (required for external PRs). In
   your repo it writes only the tests and a temporary marker; its ledger and scratch files go in
   `/tmp/claude-<uid>/break-this-pr/` and are kept for later rounds.
 - **Forge CLI** (`gh`): fetches the PR and its comments; with `--post`, posts one approved comment.
@@ -36,9 +36,9 @@ It reads no credentials; the forge CLI uses its own login.
 Install the plugin (see the [repo README](../../../README.md)) and run `/binodkafle-skills:break-this-pr`, or copy
 this folder to `~/.claude/skills/` and run `/break-this-pr`. It runs only when you invoke it.
 
-**Before reviewing,** enable the Claude Code sandbox with the strict settings in
-[references/safety.md](./references/safety.md). Without it, the review doesn't run the PR's code and caps the
-verdict at NOT YET.
+**For external PRs** (forks, or authors outside the team), enable the Claude Code sandbox with the strict
+settings in [references/safety.md](./references/safety.md). Without it, the review doesn't run the PR's code and
+caps the verdict at NOT YET. Team PRs run without it, with secrets scrubbed.
 
 ## Usage
 
@@ -94,7 +94,7 @@ header "id", observed "id" preceded by a byte-order mark · introduced · reprod
 | A command that doesn't change git state is blocked | The hook matches text, so `git reset` inside a string is blocked. Rephrase it. |
 | An alias or unusual subcommand is blocked | Only the read-only git in `scripts/guard-git.sh` runs during a review. Use the plain command. |
 | The report says it couldn't delete the marker | Auto mode can refuse the delete. Run `! rm <marker path>`. |
-| Sandbox errors | Fix the sandbox, or accept a NOT YET verdict. Don't disable it. |
+| Sandbox errors | On a team PR the review works around them. On an external PR, fix the sandbox or accept a NOT YET verdict. |
 | D0 can't fetch reviews | Check `gh auth status`. |
 | No checkpoint in a headless run | Pass `--yes`. |
 
