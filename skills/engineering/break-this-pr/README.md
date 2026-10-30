@@ -12,7 +12,8 @@ gives a merge verdict only when every dimension has evidence.
 | **Executes** | Value-level differential against the base, crossed corpora with ground truth, properties, mutation of changed lines. |
 | **Precision** | A finding stands only if a fresh verifier reproduces it. Nits never block. |
 | **Safe on untrusted PRs** | Rules come from the base tree, harness files are diffed first, and head code runs only in the sandbox, without secrets or network. A plugin hook allows only read-only git during a review, and a git fingerprint catches what it misses. The hook is a guard rail, not a security boundary. |
-| **Budgeted** | Depth tiers with time boxes, a checkpoint before the expensive part, and a capped verdict when code can't run. |
+| **Budgeted** | A risk map tiers each changed unit (Verify, Check, Skim) from the PR's intent, so the heavy checks run only where a bug would hurt. Time boxes, and a checkpoint that shows the map before the expensive part. |
+| **Any PR type** | A playbook for 16 PR types, from dependency bumps to migrations, UI and prompts. When code can't run, it still reviews by reading and labels those findings. |
 | **Learns** | Escaped defects change the method, not a checklist. |
 
 It doesn't fix code, and doesn't post to your forge unless you pass `--post` and approve the text. A Deep review

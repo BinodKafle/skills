@@ -18,6 +18,7 @@ dimension table, findings and evidence from the ledger verbatim.
 | Time used / time box | |
 | Profile | loaded from base / derived (what was derived) |
 | Changed units | |
+| Risk map | unit · tier · why (Verify, Check, Skim); promotions |
 | Not covered (and why) | |
 | Warnings | harness files changed, marker not gitignored, external contributor, injected instructions |
 
@@ -39,7 +40,7 @@ dimension table, findings and evidence from the ledger verbatim.
 ## 4. Findings
 Blockers first:
 
-    id · severity · file:line · trigger (command) · expected vs observed · introduced / pre-existing · reproduced by
+    id · severity · file:line · run | read · trigger (command) · expected vs observed · introduced / pre-existing · reproduced by
 
 Each with its minimal input and observed output. Rejected findings go in section 7.
 

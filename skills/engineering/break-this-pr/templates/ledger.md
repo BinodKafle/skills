@@ -19,6 +19,10 @@ invalid. The report copies the dimension table and findings as they are.
 | Review folder | |
 | Marker (absolute path) | |
 
+## Risk map
+| Unit | Intent row | Tier (Verify / Check / Skim) | Why | Promoted by | Checks run |
+|---|---|---|---|---|---|
+
 ## Dimensions
 | Dim | Status (pass / finding / n/a / not-run) | Evidence (command → result) | Reason (n/a or not-run) |
 |---|---|---|---|
@@ -59,7 +63,7 @@ Undeclared changes (differential differences with no row above):
 ## Findings
 Blockers first, each with its minimal input and observed output:
 
-    id · severity · file:line · trigger (command) · expected vs observed · introduced / pre-existing · reproduced by
+    id · severity · file:line · run | read · trigger (command) · expected vs observed · introduced / pre-existing · reproduced by
 
 Status per finding, for later rounds: open / fixed@SHA / rejected: why / stale.
 
