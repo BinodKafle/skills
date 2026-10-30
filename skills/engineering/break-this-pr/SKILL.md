@@ -89,6 +89,7 @@ lost edit, a changed untracked file, a moved branch, changed config) is a findin
 line, for example `break-this-pr · executed work · 14 readers to check`.
 
 **Checkpoint.** After D0 and triage, stop and show:
+- the risk map (unit, tier, why), so the user can promote a unit before the expensive part;
 - the depth and why, and the time box, labelled as a ceiling (where the review stops), not an estimate;
 - the plan: the dimensions to run, the ones that are `n/a` and why, the lenses and verifiers, and any parts that
   can't execute;
@@ -151,26 +152,40 @@ Read `.claude/review/precedents.md` if it exists, for calibration only; it is ne
 
 ## 3. Budget, depth and stopping
 
-Classify by **what each changed file controls**, not by its extension. CI, build, dependency manifests, lockfiles,
-feature-flag defaults, schemas, migrations and deleted tests all count as code.
+**Risk map.** In D0, give each changed unit a tier from the intent and the diff, by **what it controls**, not by
+its file extension. CI, build, dependency manifests, lockfiles, feature-flag defaults, schemas, migrations and
+deleted tests all count as code. Read the rows of `references/pr-types.md` for the PR's types first; a PR can
+match several. The tier decides how much proof a unit gets, so heavy work goes only where a bug would hurt.
+
+| Tier | When | What runs on it |
+|---|---|---|
+| Verify | Changes behaviour in a risk area: data parsing or loading, money/precision, auth, persistence or migrations, concurrency, external IO, a security boundary, dependencies, CI. Also any undeclared behaviour change. | Executed: assumption ledger, differential vs base, D4 edge cases; corpus and mutation at Deep |
+| Check | Logic change outside the risk areas | Read, plus at least one targeted test or differential on the changed path |
+| Skim | Formatting, comments, docs prose, a mechanical rename or move, regenerated files whose generator didn't change | Read, plus one cheap proof where possible (build, type-check, or regenerate and diff) |
+
+- **Promote, never demote.** A lens lead, a reading finding or a failed cheap proof on a unit moves it up one tier.
+  Record what promoted it. When unsure between two tiers, take the higher.
+- **Depth is the highest tier:**
 
 | Depth | When | Time box | Runs |
 |---|---|---|---|
-| Light | Prose-only docs; comments | 10 min | D0, D1, D9 |
-| Standard | Contained logic | 45 min | all dimensions; D4 is the assumption ledger, hostility, properties and rendered outputs on the changed units |
-| Deep | Data parsing or loading, money/precision, auth, persistence, concurrency, dependencies, CI | 120 min | all dimensions; D4 adds the crossed corpus and mutation, D10 adds the blind adversary |
+| Light | All units Skim | 10 min | D0, D1, D9 (including the test diff) |
+| Standard | Any unit Check, none Verify | 45 min | all dimensions, each at its unit's tier; D4 is the assumption ledger, state and time, hostility, properties and rendered outputs |
+| Deep | Any unit Verify | 120 min | all dimensions, each at its unit's tier; on Verify units D4 adds the crossed corpus and mutation, D10 adds the blind adversary |
 
-- **Applicability.** A dimension or check the diff can't affect is `n/a`, with a one-line reason from the diff
-  (for example "no locale, thread or ordering code touched"). `n/a` doesn't cap the verdict; `not-run` does.
-  D0, D1, D2, D9 and D10 are never `n/a`, except the dimensions Light doesn't run ("Light depth"). If you're
-  unsure whether a check applies, it applies.
+- **Applicability.** A dimension or check the diff can't affect, or that a unit's tier doesn't call for, is
+  `n/a`, with a one-line reason (for example "no locale, thread or ordering code touched", or "Skim tier").
+  `n/a` doesn't cap the verdict; `not-run` does. D0, D1, D2, D9 and D10 are never `n/a`, except the dimensions
+  Light doesn't run ("Light depth"). If you're unsure whether a check applies, it applies.
 - **Size rule.** If the change has more than about 400 changed lines of logic, review it per changed unit, with a
   ledger section for each, and recommend the author split the PR.
 - **Time box.** When it runs out, stop, mark the remaining rows not-run, and cap the verdict at NOT YET.
 - **Cannot execute.** If the code can't run here (missing dependencies, no runner, or the safety rules forbid
-  it), don't fall back to reading and still issue a verdict. List what couldn't run and why, and cap the verdict
-  at NOT YET.
-- **Speed.** Follow `references/speed.md`. Never drop a check that applies to save time.
+  it), list what couldn't run and why, then still review every unit by reading, at its tier. Label those findings
+  `read` and have a verifier re-read each against the code. A confirmed `read` blocker gives DO NOT MERGE;
+  otherwise cap the verdict at NOT YET. Reading never earns a MERGE on a Check or Verify unit.
+- **Speed.** Follow `references/speed.md`. Never drop a check that applies, or that a unit's tier calls for, to
+  save time; lower a tier only through the checkpoint's **lighter**.
 
 ## 4. Inputs (D0)
 
@@ -187,6 +202,7 @@ feature-flag defaults, schemas, migrations and deleted tests all count as code.
 - Fill the scope part of the ledger:
   - changed units;
   - removals: what each did, and where it now lives;
+  - the risk map (§3): each unit's tier, the intent row it serves, and why;
   - what won't be reviewed.
 - Record the test command and environment that worked (settings, placeholder secrets, build steps); later rounds
   reuse it.
@@ -196,15 +212,16 @@ feature-flag defaults, schemas, migrations and deleted tests all count as code.
 
 Spawn parallel fresh-context subagents. Context asymmetry is deliberate:
 
-| Lens | Sees | Looks for |
-|---|---|---|
-| Diff-only | the diff; no description or ticket | what the code actually does; bugs by reading |
-| Intent-only | description, ticket, base tree; no diff | what should have changed, and where the change must touch |
-| Design and standards | diff, base, official docs | D5–D7 |
-| Ops, tests and words | diff, tests, PR text | D8–D9 |
+| Lens | Sees | Looks for | Runs at |
+|---|---|---|---|
+| Diff-only | the diff; no description or ticket | what the code actually does; bugs by reading | Standard, Deep |
+| Intent-only | description, ticket, base tree; no diff | what should have changed, and where the change must touch | Standard, Deep |
+| Design and standards | diff, base, official docs | D5–D7 | Deep |
+| Ops, tests and words | diff, tests, PR text | D8–D9 | Deep |
 
-The lenses own the reading; don't redo it. Record their evidence in the ledger, then execute their leads: D1 to
-D4 wherever they point, and any D5 to D9 lead that needs a run to confirm.
+The lenses own the reading; don't redo it. At Standard, where the design and ops lenses don't run, read for D5 to
+D9 yourself. Record the evidence in the ledger, promote any unit a lead lands on (§3), then execute the leads: D1
+to D4 wherever they point, and any D5 to D9 lead that needs a run to confirm.
 
 ## 6. Dimensions
 
@@ -223,6 +240,7 @@ serves D3 and D9; one reader search serves D2 and D9's ripple check.
 - **D4 Break it.** At every depth that runs it:
   - the assumption ledger: what each decision reads (which window or position), the premise behind it, an input
     where the premise is false, and boundaries at 0, 1 and 2;
+  - state and time: time zones, retries, ordering, partial failure, concurrent writers, permissions;
   - hostility and properties: exception envelope, conservation, metamorphic noise at the head and tail;
   - rendered outputs, when the change affects one: render to an image and look at it.
 
@@ -241,8 +259,10 @@ serves D3 and D9; one reader search serves D2 and D9's ripple check.
 - **D8 Operational.** The facts in messages and logs; no swallowed errors; security; performance at real sizes;
   rollout, migration and revert, and what happens to existing users. Results independent of environment (thread
   count, locale, platform) when the change touches concurrency, locale, ordering or platform code.
-- **D9 Tests and words.** The PR's tests fail on the base, pass on the head, and assert values. Search for ripple
-  effects after every deletion or redefinition. Every sentence the change adds is checked against measured
+- **D9 Tests and words.** The test diff, at every depth: deleted or skipped tests, removed or loosened
+  assertions, widened tolerances, changed expected values, new mocks over the code under test. A weakened test is
+  the defect reviewers miss most. The PR's tests fail on the base, pass on the head, and assert values. Search for
+  ripple effects after every deletion or redefinition. Every sentence the change adds is checked against measured
   behaviour.
 
 ## 7. Verification (D10)
@@ -251,7 +271,8 @@ Verifiers get the SHAs, the ledger rows and the finding records, never your reas
 where one is available.
 
 - **Finding verifier:** re-runs each finding's trigger. A finding stands only if the re-run reproduces the observed
-  output; otherwise it's dropped, and the drop is recorded.
+  output; otherwise it's dropped, and the drop is recorded. A `read` finding (§3, cannot execute) is re-read
+  against the code at the cited line instead, and stands only if the verifier reaches the same defect.
 - **Fix attacker:** attacks any code or corpus you produced.
 - **Blind adversary (Deep):** working only from the ticket, the description and the public signatures, writes its
   own inputs and expected results. Run them on both trees and triage every mismatch.
@@ -263,7 +284,7 @@ the ledger and the report; raw logs stay in `<dir>/scratch/`.
 
 Each finding uses this format:
 
-    id · severity · file:line · trigger (command) · expected vs observed · introduced / pre-existing · reproduced by
+    id · severity · file:line · run | read · trigger (command) · expected vs observed · introduced / pre-existing · reproduced by
 
 Severity (blocker, major, minor, nit) follows user impact, as defined in `references/severity.md`.
 
