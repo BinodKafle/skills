@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.5.0 (2026-11-06)
+
+- **break-this-pr:** the verdict is now computed from the ledger, and fix rounds are reviewed as new code. Two
+  real PRs showed most escapes broke a rule the skill already had, so this release adds forcing functions
+  first and method second.
+  - New `scripts/verdict-gate.sh` reads the ledger and prints MERGE, NOT YET or DO NOT MERGE. It reads the
+    Findings and Intent tables' cells, not a summary: an open blocker, or an open major that isn't
+    pre-existing, gives DO NOT MERGE. An empty cell, a missing dimension or gate, a not-run, an n/a the
+    template doesn't allow, a depth not named, a fix not re-checked on the head, an intent row not done, an
+    open decision, a verdict cap (cannot execute, lowered depth, failed review fetch, external PR outside the
+    sandbox) or a ledger older than the head gives NOT YET. The review can't override it or attach a condition
+    to a MERGE.
+  - The ledger template is the one source for the rules: its "n/a allowed" columns say which dimensions and
+    gates may be n/a, and the gate reads them from the template, not from the review's copy. An n/a on any
+    row of a dimension counts when rows are grouped by unit, and a row naming no template dimension gives NOT
+    YET. The corpus gate can't be n/a at Deep, and the previous-head differential can be n/a only when the one
+    Rounds row is round 1. The last Rounds row must be on the current head. An intent row is n/a only when it
+    promises nothing. A blank or dash-only row counts as empty.
+  - Findings are a table with Severity, Origin (`introduced`, `pre-existing`, `claimed class`) and Status cells.
+  - New ledger tables, one row per item: Rounds, Readers (with the role the value plays for each reader),
+    Parameters and channels, Messages and side effects, Differences by class, and Verdict inputs. The
+    assumption ledger gains both-direction, multi-target and edge columns.
+  - Each round: files changed since the previous reviewed head are reviewed in full, at least at Check; a
+    corpus that can't trigger and just miss every decision is regenerated before its count is quoted; a
+    differential against the previous head maps every difference to a fix or a finding; the PR description is
+    re-checked.
+  - Method: every decision attacked in both directions; the change's goal checked where the rule runs out;
+    transform checks (idempotent, embedded formats stay valid, the producer's own syntax read by each consumer);
+    neighbour, parameter and channel corpus axes; properties need a preservation half and a negative control;
+    test exclusions are attack targets; silent fallbacks and output size are D8 checks.
+  - A pre-existing defect in the class the change claims to fix gates as if introduced. A decision made only in
+    the PR text is open.
+  - New PR type: sanitizer, escaper or encoder. `mutation.md` notes what a kill rate can't show.
+
 ## 1.4.1 (2026-10-30)
 
 - **break-this-pr:** team PRs no longer need the sandbox to run head code, so a review no longer stops to ask

@@ -11,7 +11,9 @@ By impact on users and data, not by kind of code.
 
 ## Gating
 The verdict rules are in SKILL.md §8. Two notes on applying them:
-- Pre-existing majors become follow-ups unless the change makes them worse.
+- Pre-existing majors become follow-ups, with Origin `pre-existing`. One the change makes worse is
+  `introduced`; one in the class the change claims to fix is `claimed class`, gates as introduced and makes its
+  D1 row partial.
 - Minors and nits never block.
 - A `read` finding (code couldn't run) blocks only as a verifier-confirmed blocker; otherwise the verdict is
   capped at NOT YET.
