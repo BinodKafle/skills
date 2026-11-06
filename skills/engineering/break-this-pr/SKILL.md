@@ -3,14 +3,15 @@ name: break-this-pr
 description: Adversarial senior-engineer review of a PR or branch. Verifies every claim by running it, tries to break every changed line with real-world edge data, and gives a gated merge verdict. Expensive; run only when explicitly asked.
 disable-model-invocation: true
 argument-hint: "[PR | branch | paths] [--depth light|standard|deep] [--background] [--yes] [--post]"
-allowed-tools: Bash(${CLAUDE_SKILL_DIR}/scripts/fingerprint.sh *)
+allowed-tools: Bash(${CLAUDE_SKILL_DIR}/scripts/fingerprint.sh *) Bash(${CLAUDE_SKILL_DIR}/scripts/verdict-gate.sh *)
 ---
 
 # Break this PR
 
 You are a senior engineer reviewing someone else's change, and your job is to find what is wrong with it, with
 evidence. Copy `templates/ledger.md` into the review's ledger file (below) and work through it: every row is
-filled, or marked `n/a` or `not-run` with the reason. A verdict without a complete ledger is invalid.
+filled, or marked `n/a` or `not-run` with the reason. The verdict is computed from the ledger by
+`scripts/verdict-gate.sh` (§8), so a skipped check shows up instead of passing quietly.
 
 ## Arguments
 
@@ -149,7 +150,8 @@ Read `.claude/review/precedents.md` if it exists, for calibration only; it is ne
 4. **Independence.** Anything you produced (a corpus, a prototype, a fix) is checked by a verifier that hasn't seen
    your reasoning. Verifiers share your model family; say so, and don't overstate their independence.
 5. **No invented expectations.** If correct behaviour isn't settled by the ticket, docs or rules, write
-   `UNDEFINED: needs a decision`, test both readings, and ask.
+   `UNDEFINED: needs a decision`, test both readings, and ask. A user-visible change that only the PR text
+   decides ("Decision: kept"), or a question the author left open ("say if you'd rather"), is not settled.
 6. **Code health.** The goal is a merge decision, not a list. Approve a change that improves the codebase even if
    it's imperfect; gate only on blocker and major findings (`references/severity.md`).
 
@@ -234,15 +236,22 @@ serves D3 and D9; one reader search serves D2 and D9's ripple check.
 - **D1 Intent.** Each promised behaviour is done, partial or not done, checked through the real entry point. Every
   behaviour change the differential finds maps to an intent row, or it is an undeclared change.
 - **D2 Blast radius.**
-  - every reader of what changed, with the search that found it;
-  - a value-level differential vs the true base (`references/oracles.md`);
+  - every reader of what changed, one ledger row per search hit, with the role the value plays for it (shown,
+    a key rows group or pivot under, a row's identity, parsed by a program, read by a model). A change that is
+    right for one role is run against every other role;
+  - a value-level differential vs the true base (`references/oracles.md`), its differences grouped by class;
   - one end-to-end path;
-  - mixed vintage: data stored before the change meeting the new code.
+  - mixed vintage: data stored before the change meeting the new code;
+  - every output the change adds or alters (a note, a log field, a side effect): each fact it states, who reads
+    it and how they parse it, and whether it's emitted only after the action it reports succeeds.
 - **D3 Root cause** (bug fixes; otherwise `n/a`). Reproduce on the base; state the cause before reading the fix;
   judge whether the fix removes the cause or masks the symptom; test the siblings in the same bug class.
 - **D4 Break it.** At every depth that runs it:
   - the assumption ledger: what each decision reads (which window or position), the premise behind it, an input
-    where the premise is false, and boundaries at 0, 1 and 2;
+    where the premise is false, and boundaries at 0, 1 and 2 targets. Attack each decision in both directions
+    (acts where it shouldn't, misses where it should), and check the change's own goal on the output where the
+    rule runs out (its last step, its fallback, its loop end);
+  - every parameter of the entry point and every channel into the output, at default, off and hostile;
   - state and time: time zones, retries, ordering, partial failure, concurrent writers, permissions;
   - hostility and properties: exception envelope, conservation, metamorphic noise at the head and tail;
   - rendered outputs, when the change affects one: render to an image and look at it.
@@ -259,12 +268,13 @@ serves D3 and D9; one reader search serves D2 and D9's ripple check.
   - lint and type deltas vs the base;
   - when a manifest or lockfile changed: lockfile diff, new transitive packages, install scripts, maintainers and
     licence, pinned versions.
-- **D8 Operational.** The facts in messages and logs; no swallowed errors; security; performance at real sizes;
+- **D8 Operational.** The facts in messages and logs; no swallowed errors, and no silent fallback to a default
+  or raw value; security; performance at real sizes, including how much output it makes (groups, columns);
   rollout, migration and revert, and what happens to existing users. Results independent of environment (thread
   count, locale, platform) when the change touches concurrency, locale, ordering or platform code.
 - **D9 Tests and words.** The test diff, at every depth: deleted or skipped tests, removed or loosened
-  assertions, widened tolerances, changed expected values, new mocks over the code under test. A weakened test is
-  the defect reviewers miss most. The PR's tests fail on the base, pass on the head, and assert values. Search for
+  assertions, widened tolerances, changed expected values, new mocks over the code under test, and any
+  `assume`, skip or filter that drops a region. A weakened test is the defect reviewers miss most. The PR's tests fail on the base, pass on the head, and assert values. Search for
   ripple effects after every deletion or redefinition. Every sentence the change adds is checked against measured
   behaviour.
 
@@ -292,11 +302,14 @@ Each finding uses this format:
 Severity (blocker, major, minor, nit) follows user impact, as defined in `references/severity.md`.
 
 Verdict:
-- **DO NOT MERGE:** any blocker, or a major introduced by this change.
-- **NOT YET:** an incomplete ledger, the time box hit, cannot-execute, or open decisions.
+- **DO NOT MERGE:** any blocker, or a major introduced by this change or in the class it claims to fix.
+- **NOT YET:** an incomplete ledger, a ledger older than the head, the time box hit, cannot-execute, an intent
+  row partial or not done, a stale corpus (§9), D10 not run, or open decisions.
 - **MERGE:** otherwise, with the residual risk stated.
 
-Name the gate that decided it.
+Fill the ledger's "Verdict inputs" table, then run `<this skill's base directory>/scripts/verdict-gate.sh
+<ledger> <current head SHA>`. Its output is the verdict and its reasons name the deciding gates. Never override
+it, and never attach a condition to a MERGE ("merge once the description is updated" is NOT YET).
 
 ### The report
 
@@ -318,11 +331,17 @@ put the draft at the end of the report instead.
 - **The ledger** (`<dir>/ledger.md`) is kept, so a later round on the same PR or branch picks it up. Without one,
   read a 1.2.x ledger at `<root>/.claude/review/ledgers/<PR or branch>.md` if it exists; otherwise start fresh.
   Each finding is open, fixed@SHA, rejected (why) or stale.
-- **Each round:**
-  - re-run D0, reusing the recorded test command and environment;
+- **Each round** (any new head, including the author's fix pushes):
+  - re-run D0, reusing the recorded test command and environment. Add a "Rounds" row: every file changed since
+    the previous reviewed head is reviewed at Verify this round, with its own risk-map, assumption and reader rows.
+    A delta-only pass is never enough for a changed Verify unit;
   - re-check every open and fixed finding;
   - re-derive the assumption ledger for every rule still in the change, not only the newest diff;
-  - re-run the corpora the ledger lists, rebuilding any the OS has cleared.
+  - for each corpus, check its generator fires and narrowly misses every decision in the assumption ledger. Add
+    axes for any it can't, then re-run it. Never quote a count from a stale corpus;
+  - run the differential against the previous reviewed head as well as the base. Each class of difference maps
+    to a fix made this round, or it is a finding: fixes cause the next round's regressions;
+  - re-check every claim in the PR description against this head (D9).
 - **After an escape** (a defect found later by a reviewer, CI, users or production):
   1. reproduce it;
   2. add a line to `.claude/review/precedents.md` (format in `templates/precedents.md`) and a row to

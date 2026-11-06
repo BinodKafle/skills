@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.5.0 (2026-11-06)
+
+- **break-this-pr:** the verdict is now computed from the ledger, and fix rounds are reviewed as new code. Two
+  real PRs showed most escapes broke a rule the skill already had, so this release adds forcing functions
+  first and method second.
+  - New `scripts/verdict-gate.sh` reads the ledger and prints MERGE, NOT YET or DO NOT MERGE. An empty cell, a
+    not-run gate, a ledger older than the head, a partial intent row or an open decision gives NOT YET. The
+    review can't override it or attach a condition to a MERGE.
+  - New ledger tables, one row per item: Rounds, Readers (with the role the value plays for each reader),
+    Parameters and channels, Messages and side effects, Differences by class, and Verdict inputs. The
+    assumption ledger gains both-direction, multi-target and "where it runs out" columns.
+  - Each round: files changed since the previous reviewed head are reviewed at Verify; a corpus that can't fire
+    and narrowly miss every decision is regenerated before its count is quoted; a differential against the
+    previous head maps every difference to a fix or a finding; the PR description is re-checked.
+  - Method: every decision attacked in both directions; the change's goal checked where the rule runs out;
+    transform checks (idempotent, embedded formats stay valid, the producer's own syntax read by each consumer);
+    neighbour, parameter and channel corpus axes; properties need a preservation half and a negative control;
+    test exclusions are attack targets; silent fallbacks and output size are D8 checks.
+  - A pre-existing defect in the class the change claims to fix gates as if introduced. A decision made only in
+    the PR text is open.
+  - New PR type: sanitizer, escaper or encoder. `mutation.md` notes what a kill rate can't show.
+
 ## 1.4.1 (2026-10-30)
 
 - **break-this-pr:** team PRs no longer need the sandbox to run head code, so a review no longer stops to ask

@@ -58,7 +58,9 @@ caps the verdict at NOT YET. Team PRs run without it, with secrets scrubbed.
 
 A run creates the marker `.claude/review/.active` at the repo root (turning on the git guard), prints each phase,
 stops at a checkpoint (proceed / lighter / stop), and ends with the full report from
-[templates/report.md](./templates/report.md), then deletes the marker.
+[templates/report.md](./templates/report.md), then deletes the marker. The verdict comes from
+[scripts/verdict-gate.sh](./scripts/verdict-gate.sh), which reads the ledger: any empty row, skipped gate or
+ledger older than the PR's head gives NOT YET.
 
 ### Example report (shortened)
 

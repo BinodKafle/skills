@@ -1,7 +1,7 @@
 # Working in this repo
 
 Before every commit, run `python3 scripts/check.py`, plus the tests in `tests/break-this-pr/` if you touched its
-scripts (`guard-git.test.sh`, `fingerprint.test.sh`).
+scripts (`guard-git.test.sh`, `fingerprint.test.sh`, `verdict-gate.test.sh`).
 
 ## Layout
 

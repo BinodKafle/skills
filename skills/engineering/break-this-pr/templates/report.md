@@ -6,7 +6,8 @@ dimension table, findings and evidence from the ledger verbatim.
 ## 1. Verdict
 **MERGE / NOT YET / DO NOT MERGE**
 
-- Deciding gate: (for example "major F2 introduced by this change", "D4 not run: time box", "cannot execute")
+- Deciding gate: the reasons `verdict-gate.sh` printed (for example "gate Findings is fail: major F2 introduced",
+  "gate D10 blind adversary is not-run", "ledger head is not the current head")
 - Residual risk: what could still be wrong, and why it wasn't checked
 
 ## 2. Depth, scope and what isn't covered
