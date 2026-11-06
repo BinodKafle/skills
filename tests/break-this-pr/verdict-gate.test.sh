@@ -18,6 +18,7 @@ ledger() {
 | Field | Value |
 |---|---|
 | Head SHA | $HEAD |
+| Depth and why | Deep: prep.py is Verify |
 
 ## Rounds
 | Round | Head SHA | Previous reviewed SHA | Files changed since | Units |
@@ -28,13 +29,26 @@ ledger() {
 | Dim | Status | Evidence | Reason |
 |---|---|---|---|
 | D0 Inputs | pass | fetched 3 | n/a |
+| D1 Intent | pass | 3 of 3 done | n/a |
+| D2 Blast radius | pass | 4 readers | n/a |
 | D3 Root cause | n/a | none | not a bug fix |
 | D4 Break it | finding | F1 | n/a |
+| D5 Design | pass | read | n/a |
+| D6 Simplicity | pass | read | n/a |
+| D7 Standards and supply chain | n/a | none | no manifest touched |
+| D8 Operational | pass | messages asserted | n/a |
+| D9 Tests and words | pass | test diff clean | n/a |
+| D10 Verification | pass | 1 of 1 reproduced | n/a |
+
+## Intent ledger
+| # | Promised behaviour | Scenario run | Result | Done / partial / not done |
+|---|---|---|---|---|
+| 1 | escape formulas | prep.py on a.csv | no live formula | done |
 
 ## Assumption ledger
-| Decision | Reads | Premise | Premise false | Holds, meaning false | Over | Under | 0 / 1 / 2+ | Runs out | Corpus | Test |
-|---|---|---|---|---|---|---|---|---|---|---|
-| prep.py:10 | cell tail | a | b | c | d | e | f | g | h | t1 |
+| Decision | Reads | Premise | Premise attacks | Both directions | 0 / 1 / 2+ | Edges | Corpus | Test |
+|---|---|---|---|---|---|---|---|---|
+| prep.py:10 | cell tail | leading = is a formula | ' = 1 → kept | =a → 'a; a=b → a=b | 0, 1, 2 cells | last cell 'x | fires, misses | t1 |
 
 ## Readers
 | Unit | Reader | Role | Input | Result |
@@ -56,6 +70,10 @@ ledger() {
 |---|---|---|---|---|
 | base | prefix added before a call | 12 | a → 'a | intent 1 |
 
+## Findings
+    F1 · minor · prep.py:12 · run · python t.py · note vs none · introduced · verifier
+    F2 · major · prep.py:30 · run · python u.py · 'a vs a · introduced · verifier · fixed@4466eed
+
 ## Verdict inputs
 | Gate | Status | Evidence |
 |---|---|---|
@@ -67,6 +85,7 @@ ledger() {
 | D10 blind adversary | pass | 40 inputs, 0 mismatches |
 | No open decisions | pass | none |
 | Time box | pass | 70 of 120 min |
+| No verdict cap | pass | ran in sandbox, full depth, fetch ok |
 EOF
 }
 
@@ -91,7 +110,7 @@ case_ "stale head" 1 "NOT YET" '' b01b69c43aaaaaaa
 case_ "too short a head" 1 "NOT YET" '' 4466
 case_ "findings fail beats everything" 2 "DO NOT MERGE" '/^| Findings/s/pass/fail/; /^| Time box/s/pass/not-run/'
 case_ "blind adversary not run" 1 "NOT YET" '/^| D10 blind/s/pass/not-run/'
-case_ "blind adversary n/a below Deep" 0 "MERGE" '/^| D10 blind/s/pass/n\/a/'
+case_ "blind adversary n/a below Deep" 0 "MERGE" '/^| Depth and why/s/Deep/Standard/; /^| D10 blind/s/pass/n\/a/'
 case_ "first round has no previous head" 0 "MERGE" '/^| Previous-head/s/pass/n\/a/'
 case_ "findings can't be n/a" 1 "NOT YET" '/^| Findings/s/pass/n\/a/'
 case_ "D1 partial" 1 "NOT YET" '/^| D1 complete/s/pass/fail/'
@@ -106,6 +125,21 @@ case_ "differences table missing" 1 "NOT YET" '/^## Differences by class/,/^| ba
 case_ "escaped pipe stays in its cell" 0 "MERGE" 's/two hours on one day/a \\| b/'
 case_ "bare pipe breaks the row" 1 "NOT YET" 's/two hours on one day/a | b/'
 case_ "status is case-insensitive" 0 "MERGE" '/^| Time box/s/pass/PASS/'
+case_ "backticked status" 0 "MERGE" '/^| Time box/s/pass/`pass`/'
+case_ "bold status" 0 "MERGE" '/^| Time box/s/pass/**pass**/'
+case_ "backticked head SHA" 0 "MERGE" "s/^| Head SHA | $HEAD/| Head SHA | \`$HEAD\`/"
+case_ "open introduced major beats a pass gate" 2 "DO NOT MERGE" 's/· major · prep.py:30 · \(.*\) · fixed@4466eed/· major · prep.py:30 · \1/'
+case_ "open blocker beats a pass gate" 2 "DO NOT MERGE" 's/· minor · prep.py:12/· blocker · prep.py:12/'
+case_ "pre-existing major is a follow-up" 0 "MERGE" 's/ · fixed@4466eed//; s/introduced · verifier$/pre-existing · verifier/'
+case_ "rejected major doesn't block" 0 "MERGE" 's/fixed@4466eed/rejected: not reproduced/'
+case_ "partial intent row beats a pass gate" 1 "NOT YET" '/^| 1 | escape/s/done |$/partial |/'
+case_ "intent ledger has no rows" 1 "NOT YET" '/^| 1 | escape/d'
+case_ "dimension row deleted" 1 "NOT YET" '/^| D4 Break it/d'
+case_ "D1 can't be n/a" 1 "NOT YET" '/^| D1 Intent/s/pass/n\/a/'
+case_ "D9 can't be n/a" 1 "NOT YET" '/^| D9 Tests/s/pass/n\/a/'
+case_ "D9 n/a at Light depth" 0 "MERGE" '/^| Depth and why/s/Deep/Light/; /^| D9 Tests/s/pass/n\/a/; /^| D10 blind/s/pass/n\/a/'
+case_ "blind adversary can't be n/a at Deep" 1 "NOT YET" '/^| D10 blind/s/pass/n\/a/'
+case_ "verdict cap gate fails" 1 "NOT YET" '/^| No verdict cap/s/pass/fail/'
 
 expect "unfilled template" 1 "NOT YET" "$TEMPLATE"
 

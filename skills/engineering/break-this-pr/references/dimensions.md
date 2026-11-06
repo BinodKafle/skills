@@ -24,7 +24,7 @@ Skim gets a read.
   - re-check every reader of a redefined field or rule under its new meaning. A function whose output gets
     finer, coarser or differently shaped is redefined, even with the same name and signature;
   - give each reader its role, because one output can be right for one role and wrong for another: shown to a
-    person; a key rows group, join, pivot or dedupe under (finer keys mean more groups and different
+    person; a key for grouping, joining, pivoting or deduping (finer keys mean more groups and different
     aggregates); a row's identity (coarser labels merge rows); parsed by a program (its dialect, delimiters and
     quoting); read by a model (docstrings and generated docs that feed prompts). Run one input per role;
   - a guard added to one sibling is owed by the others;
@@ -103,8 +103,8 @@ the rest of the class.
 - **Test diff** (every depth): deleted or skipped tests, removed or loosened assertions, widened tolerances,
   changed expected values, new mocks over the code under test. Each is a finding unless the intent explains it.
 - **Tests:** fail on the base, pass on the head, assert values (not shapes) and each arranged failure. Check the
-  mutation survivors. A test whose inputs all share one regime (one scale, one granularity, two columns) can't
-  catch a change between regimes.
+  mutation survivors. A test whose inputs all share one scale or granularity can't catch a change
+  between them.
 - **Properties:** one that asserts only that a bad output is absent passes a function that garbles everything.
   It also needs its preservation half (the output equals the input except for the declared edits) and a
   negative control (the oracle fires on unprotected output).

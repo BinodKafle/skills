@@ -1,9 +1,9 @@
 # Review ledger: <PR or branch>
 
 Every row is filled, or marked `n/a` or `not-run` with the reason. A table that doesn't apply gets one `n/a`
-row saying why. `scripts/verdict-gate.sh` reads this file and computes the verdict; it refuses empty cells, so a
-skipped check shows instead of passing quietly. Escape a `|` inside a cell as `\|`. The report copies the
-dimension table and findings as they are.
+row saying why. `scripts/verdict-gate.sh` computes the verdict from this file, so keep the section names and the
+D0 to D10 rows as they are, even on a large PR (group rows by unit inside each table). Escape a `|` inside a cell
+as `\|`. The report copies the dimension table and findings as they are.
 
 ## Scope
 | Field | Value |
@@ -22,9 +22,9 @@ dimension table and findings as they are.
 | Marker (absolute path) | |
 
 ## Rounds
-One row per round. Files changed since the previous reviewed head are Verify units this round (SKILL.md §9).
+One row per round. Each file changed since the previous reviewed head is reviewed in full this round (SKILL.md §9).
 
-| Round | Head SHA | Previous reviewed SHA | Files changed since (command → count) | Units new or changed this round, with tier |
+| Round | Head SHA | Previous reviewed SHA | Files changed since (command → count) | Units changed this round, with tier |
 |---|---|---|---|---|
 
 ## Risk map
@@ -47,22 +47,23 @@ One row per round. Files changed since the previous reviewed head are Verify uni
 | D10 Verification | | | |
 
 ## Intent ledger
+The gate reads the last column: any `partial` or `not done` gives NOT YET.
+
 | # | Promised behaviour (source) | Scenario run | Result | Done / partial / not done |
 |---|---|---|---|---|
 
 Undeclared changes (differential differences with no row above):
 
 ## Assumption ledger
-One row per decision the change makes (each branch, condition, threshold and pattern alternative), re-derived
-every round. Each cell is an input you ran and its result.
+One row per decision (each branch, condition, threshold and pattern alternative), re-derived every round. Each
+cell is an input you ran and its result. Method: `references/dimensions.md` D4.
 
-| Decision (file:line) | Reads (window / position) | Premise | Premise false | Holds, meaning false | Acts where it shouldn't | Misses where it should | 0 / 1 / 2+ targets | Where it runs out (last step, fallback, loop end) | Fires and narrowly misses in the corpus | Test |
-|---|---|---|---|---|---|---|---|---|---|---|
+| Decision (file:line) | Reads (window / position) | Premise | Premise false; premise holds but meaning is wrong | Acts where it shouldn't; misses where it should | 0 / 1 / 2+ targets | At its edges (last step, fallback, loop end) | Corpus triggers and just misses it | Test |
+|---|---|---|---|---|---|---|---|---|
 
 ## Readers
-Every reader of each changed function, rule or output, from a recorded search (one row per hit). The role is
-what the value is to that reader: shown to a person, a key rows group, join or pivot under, a row's identity,
-parsed by a program (name its dialect), or read by a model (docstrings, generated docs, prompts).
+Every reader of each changed function, rule or output, from a recorded search (one row per hit). Roles are
+listed in `references/dimensions.md` D2; for a parser, name its dialect.
 
 Search: `<command>` → <hit count>
 
@@ -83,7 +84,7 @@ Every note, log field, error and side effect the change adds or alters.
 |---|---|---|---|---|
 
 ## Corpus and differential
-| Corpus | Axes crossed | Cells | Regressions | Improvements | Both wrong | Cannot produce (including decisions it can't fire or narrowly miss) |
+| Corpus | Axes crossed | Cells | Regressions | Improvements | Both wrong | Cannot produce (including decisions it can't trigger or just miss) |
 |---|---|---|---|---|---|---|
 
 ## Differences by class
@@ -102,11 +103,13 @@ verdict: each class maps to an intent row or a fix in this round, or it is a fin
 |---|---|---|---|
 
 ## Findings
-Blockers first, each with its minimal input and observed output:
+Blockers first, each with its minimal input and observed output. The gate reads these lines: an open
+blocker, or an open major marked `introduced`, gives DO NOT MERGE. Mark a pre-existing major in the class the
+change claims to fix as `introduced`.
 
     id · severity · file:line · run | read · trigger (command) · expected vs observed · introduced / pre-existing · reproduced by
 
-Status per finding, for later rounds: open / fixed@SHA / rejected: why / stale.
+Status per finding, appended to its line: open (no mark) / fixed@SHA / rejected: why / stale.
 
 ## Verifier summary
 | Verifier (model) | Confirmed | Rejected (why) | New findings |
@@ -123,14 +126,16 @@ Before the report:
 ```
 
 ## Verdict inputs
-Status is `pass` or `fail`. Only the corpus, previous-head, finding-verifier and blind-adversary gates may be
-`n/a` (no corpus, first round, no findings, below Deep). Anything else, `not-run` included, gives NOT YET.
+Status is pass or fail. Only the corpus, previous-head, finding-verifier and blind-adversary gates may be
+n/a (no corpus, first round, no findings, below Deep). Anything else, not-run included, gives NOT YET.
 
 - **Findings:** `fail` on any blocker, or a major introduced or in the class the change claims to fix.
 - **D1 complete:** no intent row is partial or not done.
-- **Every corpus current:** each generator fires and narrowly misses every decision in the assumption ledger.
+- **Every corpus current:** each generator triggers and just misses every decision in the assumption ledger.
 - **Previous-head differential mapped:** every class in "Differences by class" maps to a fix or a finding.
 - **No open decisions:** including any decided only in the PR text.
+- **No verdict cap:** `fail` if the code couldn't execute, the depth was lowered (`--depth` or **lighter**), a
+  review fetch failed, or an external PR ran outside the strict sandbox.
 
 | Gate | Status | Evidence |
 |---|---|---|
@@ -142,9 +147,10 @@ Status is `pass` or `fail`. Only the corpus, previous-head, finding-verifier and
 | D10 blind adversary | | |
 | No open decisions | | |
 | Time box | | |
+| No verdict cap | | |
 
 ## Verdict
-The output of `verdict-gate.sh <this ledger> <current head SHA>`, pasted as is, then the residual risk. Never
+The output of `verdict-gate.sh <this ledger> <head SHA from the forge>`, pasted as is, then the residual risk. Never
 override it, and never attach a condition to a MERGE.
 
 ## Decisions for the user

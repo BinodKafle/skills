@@ -20,7 +20,7 @@ Name each fixture after what it mimics (an ERP export, a spreadsheet save-as).
 
 ## Decision-driven axes
 The structural axes say what inputs look like; these say which inputs reach the change. List every decision in
-the assumption ledger. For each, generate inputs where it fires, where it narrowly misses, and inputs holding two
+the assumption ledger. For each, generate inputs where it triggers, where it just misses, and inputs holding two
 or more of its targets. Add as axes:
 - **Neighbours:** for rows of fields, field k crossed with field k+1, with 0, 1 or 2 targets in each, so a
   trigger split across two fields is produced.
@@ -44,6 +44,6 @@ on both. Group every changed cell by class into the ledger's "Differences by cla
 each. A count is never a verdict: a class with no intent row or fix is a finding.
 
 ## Generator inventory
-List what the generator cannot produce, including each decision it can't fire or narrowly miss. "No regressions
+List what the generator cannot produce, including each decision it can't trigger or just miss. "No regressions
 over N" covers only what it can; anything else is uncovered, not safe. Re-check this list every round (SKILL.md
 §9): a generator built for an earlier version of the rule is stale.

@@ -6,13 +6,15 @@
   real PRs showed most escapes broke a rule the skill already had, so this release adds forcing functions
   first and method second.
   - New `scripts/verdict-gate.sh` reads the ledger and prints MERGE, NOT YET or DO NOT MERGE. An empty cell, a
-    not-run gate, a ledger older than the head, a partial intent row or an open decision gives NOT YET. The
-    review can't override it or attach a condition to a MERGE.
+    missing D0 to D10 row, a not-run gate, a ledger older than the head, a partial intent row, an open decision
+    or a verdict cap (cannot execute, lowered depth, failed review fetch, external PR outside the sandbox) gives
+    NOT YET. An open blocker, or open introduced major, in the Findings lines gives DO NOT MERGE even when the
+    summary gate says pass. The review can't override it or attach a condition to a MERGE.
   - New ledger tables, one row per item: Rounds, Readers (with the role the value plays for each reader),
     Parameters and channels, Messages and side effects, Differences by class, and Verdict inputs. The
-    assumption ledger gains both-direction, multi-target and "where it runs out" columns.
-  - Each round: files changed since the previous reviewed head are reviewed at Verify; a corpus that can't fire
-    and narrowly miss every decision is regenerated before its count is quoted; a differential against the
+    assumption ledger gains both-direction, multi-target and edge columns.
+  - Each round: files changed since the previous reviewed head are reviewed in full, at least at Check; a corpus
+    that can't trigger and just miss every decision is regenerated before its count is quoted; a differential against the
     previous head maps every difference to a fix or a finding; the PR description is re-checked.
   - Method: every decision attacked in both directions; the change's goal checked where the rule runs out;
     transform checks (idempotent, embedded formats stay valid, the producer's own syntax read by each consumer);
