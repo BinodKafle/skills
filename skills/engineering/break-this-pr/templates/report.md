@@ -6,8 +6,7 @@ dimension table, findings and evidence from the ledger verbatim.
 ## 1. Verdict
 **MERGE / NOT YET / DO NOT MERGE**
 
-- Deciding gate: the reasons `verdict-gate.sh` printed (for example "gate Findings is fail: major F2 introduced",
-  "gate D10 blind adversary is not-run", "ledger head is not the current head")
+- Deciding gate: the reasons `verdict-gate.sh` printed, as is
 - Residual risk: what could still be wrong, and why it wasn't checked
 
 ## 2. Depth, scope and what isn't covered
@@ -39,11 +38,11 @@ dimension table, findings and evidence from the ledger verbatim.
 | D10 Verification | | | |
 
 ## 4. Findings
-Blockers first:
+The ledger's Findings table, blockers first, each with its minimal input and observed output. Rejected findings
+go in section 7.
 
-    id · severity · file:line · run | read · trigger (command) · expected vs observed · introduced / pre-existing · reproduced by
-
-Each with its minimal input and observed output. Rejected findings go in section 7.
+| ID | Severity | File:line | Run / read | Trigger (command) | Expected vs observed | Origin | Reproduced by | Status |
+|---|---|---|---|---|---|---|---|---|
 
 ## 5. Tests written
 | Test (file::name) | What it pins | Fails on base | Passes on head |

@@ -93,7 +93,7 @@ the rest of the class.
   the call that can fail hides bugs in the rest.
 - **Security:** inputs, injection, auth, secrets, sandbox boundaries.
 - **Performance:** measured at realistic sizes, including any new full read or copy; a verdict on every new regex.
-  Also how much output a realistic input makes (groups, columns, categories, notes), against the base.
+  Also the output volume (groups, columns, notes) at realistic sizes, against the base.
 - **Environment** (when the change touches concurrency, locale, ordering or platform code): same results across
   thread counts, locale, platform and file order; run at CI's settings.
 - **Rollout:** migrations up and down, deploy steps, config defaults, flags, revert, effect on existing users and
@@ -107,7 +107,7 @@ the rest of the class.
   between them.
 - **Properties:** one that asserts only that a bad output is absent passes a function that garbles everything.
   It also needs its preservation half (the output equals the input except for the declared edits) and a
-  negative control (the oracle fires on unprotected output).
+  negative control (the oracle triggers on unprotected output).
 - **Exclusions:** every `assume`, skip, filter, excluded layout or "kept away from" note in the tests under review
   marks an untested region. Attack it directly.
 - **Ripple:** after a deletion or redefinition, search code, tests, comments, docs and the PR text for the old name

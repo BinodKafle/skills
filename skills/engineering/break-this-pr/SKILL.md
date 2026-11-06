@@ -180,8 +180,8 @@ match several. The tier decides how much proof a unit gets, so heavy work goes o
 
 - **Applicability.** A dimension or check the diff can't affect, or that a unit's tier doesn't call for, is
   `n/a`, with a one-line reason (for example "no locale, thread or ordering code touched", or "Skim tier").
-  `n/a` doesn't cap the verdict; `not-run` does. D0, D1, D2, D9 and D10 are never `n/a`, except the dimensions
-  Light doesn't run ("Light depth"). If you're unsure whether a check applies, it applies.
+  `n/a` doesn't cap the verdict; `not-run` does. The ledger's "n/a allowed" column says which dimensions and
+  gates may be `n/a`, and the gate enforces it. If you're unsure whether a check applies, it applies.
 - **Size rule.** If the change has more than about 400 changed lines of logic, review it per changed unit, with
   each ledger table's rows grouped by unit (keep the section names; the gate reads them), and recommend the
   author split the PR.
@@ -293,17 +293,14 @@ the ledger and the report; raw logs stay in `<dir>/scratch/`.
 
 ## 8. Findings and verdict
 
-Each finding uses this format:
-
-    id · severity · file:line · run | read · trigger (command) · expected vs observed · introduced / pre-existing · reproduced by
-
-Severity (blocker, major, minor, nit) follows user impact, as defined in `references/severity.md`.
+Each finding is a row of the ledger's Findings table, which defines its columns. Severity (blocker, major,
+minor, nit) follows user impact, as defined in `references/severity.md`.
 
 Verdict: DO NOT MERGE on any open blocker, or an open major introduced by this change or in the class it
 claims to fix; NOT YET on any gap or cap; otherwise MERGE, with the residual risk stated. The gates are defined
 in the ledger's "Verdict inputs".
 
-Fill that table, then run `<this skill's base directory>/scripts/verdict-gate.sh <ledger> <head SHA>`, taking the
+Fill the ledger, then run `<this skill's base directory>/scripts/verdict-gate.sh <ledger> <head SHA>`, taking the
 head SHA from the forge (or `git rev-parse` on the head ref), not from the ledger. Its output is the verdict and
 its reasons name the deciding gates. Never override it, and never attach a condition to a MERGE ("merge once the
 description is updated" is NOT YET).
@@ -318,7 +315,7 @@ and why.
 ### Posting (`--post`)
 
 Only for a real PR, and only after the report. Draft one PR comment: the verdict and gate, the blocker and major
-findings in full format, the minor ones as one line each, and the tests written. Leave out local paths and the
+findings with every column, the minor ones as one line each, and the tests written. Leave out local paths and the
 ledger. Show the exact text, ask whether to post it, and post it only on a yes, as a plain comment with the forge
 CLI (never an approval or a change request). In a background run, or for an external-contributor PR, don't post;
 put the draft at the end of the report instead.

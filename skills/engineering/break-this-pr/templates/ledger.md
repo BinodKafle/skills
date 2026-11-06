@@ -1,9 +1,10 @@
 # Review ledger: <PR or branch>
 
 Every row is filled, or marked `n/a` or `not-run` with the reason. A table that doesn't apply gets one `n/a`
-row saying why. `scripts/verdict-gate.sh` computes the verdict from this file, so keep the section names and the
-D0 to D10 rows as they are, even on a large PR (group rows by unit inside each table). Escape a `|` inside a cell
-as `\|`. The report copies the dimension table and findings as they are.
+row saying why. `scripts/verdict-gate.sh` computes the verdict from this file, so keep the section names, column
+names and row labels as they are, even on a large PR (group rows by unit inside each table). The gate takes each
+"n/a allowed" rule from this template, not from your copy. Escape a `|` inside a cell as `\|`. The report copies
+the dimension table and findings as they are.
 
 ## Scope
 | Field | Value |
@@ -32,22 +33,22 @@ One row per round. Each file changed since the previous reviewed head is reviewe
 |---|---|---|---|---|---|
 
 ## Dimensions
-| Dim | Status (pass / finding / n/a / not-run) | Evidence (command → result) | Reason (n/a or not-run) |
-|---|---|---|---|
-| D0 Inputs | | | |
-| D1 Intent | | | |
-| D2 Blast radius | | | |
-| D3 Root cause | | | |
-| D4 Break it | | | |
-| D5 Design | | | |
-| D6 Simplicity | | | |
-| D7 Standards and supply chain | | | |
-| D8 Operational | | | |
-| D9 Tests and words | | | |
-| D10 Verification | | | |
+| Dim | n/a allowed | Status (pass / finding / n/a / not-run) | Evidence (command → result) | Reason (n/a or not-run) |
+|---|---|---|---|---|
+| D0 Inputs | no | | | |
+| D1 Intent | no | | | |
+| D2 Blast radius | at light | | | |
+| D3 Root cause | yes | | | |
+| D4 Break it | yes | | | |
+| D5 Design | yes | | | |
+| D6 Simplicity | yes | | | |
+| D7 Standards and supply chain | yes | | | |
+| D8 Operational | yes | | | |
+| D9 Tests and words | no | | | |
+| D10 Verification | at light | | | |
 
 ## Intent ledger
-The gate reads the last column: any `partial` or `not done` gives NOT YET.
+The gate reads the last column: anything but `done` (or `n/a` on a no-intent row) gives NOT YET.
 
 | # | Promised behaviour (source) | Scenario run | Result | Done / partial / not done |
 |---|---|---|---|---|
@@ -58,7 +59,7 @@ Undeclared changes (differential differences with no row above):
 One row per decision (each branch, condition, threshold and pattern alternative), re-derived every round. Each
 cell is an input you ran and its result. Method: `references/dimensions.md` D4.
 
-| Decision (file:line) | Reads (window / position) | Premise | Premise false; premise holds but meaning is wrong | Acts where it shouldn't; misses where it should | 0 / 1 / 2+ targets | At its edges (last step, fallback, loop end) | Corpus triggers and just misses it | Test |
+| Decision (file:line) | Reads (window / position) | Premise | Premise false; premise holds but meaning is wrong | Both directions (acts where it shouldn't; misses where it should) | 0 / 1 / 2+ targets | At its edges (last step, fallback, loop end) | Corpus triggers and just misses it | Test |
 |---|---|---|---|---|---|---|---|---|
 
 ## Readers
@@ -103,13 +104,17 @@ verdict: each class maps to an intent row or a fix in this round, or it is a fin
 |---|---|---|---|
 
 ## Findings
-Blockers first, each with its minimal input and observed output. The gate reads these lines: an open
-blocker, or an open major marked `introduced`, gives DO NOT MERGE. Mark a pre-existing major in the class the
-change claims to fix as `introduced`.
+Blockers first, each with its minimal input and observed output. With no findings, write one row with ID
+`none`. The gate reads three cells:
+- **Severity:** blocker, major, minor or nit (`references/severity.md`).
+- **Origin:** `introduced` (including a pre-existing defect the change makes worse), `pre-existing`, or
+  `claimed class` (pre-existing, in the class the change claims to fix; gates as introduced).
+- **Status:** `open`, `fixed@<head SHA>` (its trigger re-run on this head), `rejected: why` or `stale`.
 
-    id · severity · file:line · run | read · trigger (command) · expected vs observed · introduced / pre-existing · reproduced by
+An open blocker, or an open major that isn't `pre-existing`, gives DO NOT MERGE.
 
-Status per finding, appended to its line: open (no mark) / fixed@SHA / rejected: why / stale.
+| ID | Severity | File:line | Run / read | Trigger (command) | Expected vs observed | Origin | Reproduced by | Status |
+|---|---|---|---|---|---|---|---|---|
 
 ## Verifier summary
 | Verifier (model) | Confirmed | Rejected (why) | New findings |
@@ -126,32 +131,27 @@ Before the report:
 ```
 
 ## Verdict inputs
-Status is pass or fail. Only the corpus, previous-head, finding-verifier and blind-adversary gates may be
-n/a (no corpus, first round, no findings, below Deep). Anything else, not-run included, gives NOT YET.
+Status is pass or fail; n/a only where "n/a allowed" says so. Anything else, not-run included, gives NOT YET.
+Findings and intent aren't gates here: the gate reads their tables.
 
-- **Findings:** `fail` on any blocker, or a major introduced or in the class the change claims to fix.
-- **D1 complete:** no intent row is partial or not done.
-- **Every corpus current:** each generator triggers and just misses every decision in the assumption ledger.
-- **Previous-head differential mapped:** every class in "Differences by class" maps to a fix or a finding.
+- **Every corpus current:** each generator triggers and just misses every decision (n/a: no corpus).
+- **Previous-head differential mapped:** each class maps to a fix or a finding (n/a: first round).
 - **No open decisions:** including any decided only in the PR text.
 - **No verdict cap:** `fail` if the code couldn't execute, the depth was lowered (`--depth` or **lighter**), a
   review fetch failed, or an external PR ran outside the strict sandbox.
 
-| Gate | Status | Evidence |
-|---|---|---|
-| Findings | | |
-| D1 complete | | |
-| Every corpus current | | |
-| Previous-head differential mapped | | |
-| D10 finding verifier | | |
-| D10 blind adversary | | |
-| No open decisions | | |
-| Time box | | |
-| No verdict cap | | |
+| Gate | n/a allowed | Status | Evidence |
+|---|---|---|---|
+| Every corpus current | yes | | |
+| Previous-head differential mapped | yes | | |
+| D10 finding verifier | no findings or at light | | |
+| D10 blind adversary | below deep | | |
+| No open decisions | no | | |
+| Time box | no | | |
+| No verdict cap | no | | |
 
 ## Verdict
-The output of `verdict-gate.sh <this ledger> <head SHA from the forge>`, pasted as is, then the residual risk. Never
-override it, and never attach a condition to a MERGE.
+The output of `verdict-gate.sh <this ledger> <head SHA from the forge>`, pasted as is, then the residual risk.
 
 ## Decisions for the user
 1.
