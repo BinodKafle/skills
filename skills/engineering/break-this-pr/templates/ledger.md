@@ -23,7 +23,8 @@ the dimension table and findings as they are.
 | Marker (absolute path) | |
 
 ## Rounds
-One row per round. Each file changed since the previous reviewed head is reviewed in full this round (SKILL.md §9).
+One row per round, newest last; the last row's head must be the current head. Each file changed since the
+previous reviewed head is reviewed in full this round (SKILL.md §9). Round 1 has `n/a` as its previous SHA.
 
 | Round | Head SHA | Previous reviewed SHA | Files changed since (command → count) | Units changed this round, with tier |
 |---|---|---|---|---|
@@ -48,7 +49,8 @@ One row per round. Each file changed since the previous reviewed head is reviewe
 | D10 Verification | at light | | | |
 
 ## Intent ledger
-The gate reads the last column: anything but `done` (or `n/a` on a no-intent row) gives NOT YET.
+The gate reads the last column: anything but `done` gives NOT YET. `n/a` is only for a no-intent row, whose
+promised behaviour cell starts with `n/a` and says why.
 
 | # | Promised behaviour (source) | Scenario run | Result | Done / partial / not done |
 |---|---|---|---|---|
@@ -134,16 +136,17 @@ Before the report:
 Status is pass or fail; n/a only where "n/a allowed" says so. Anything else, not-run included, gives NOT YET.
 Findings and intent aren't gates here: the gate reads their tables.
 
-- **Every corpus current:** each generator triggers and just misses every decision (n/a: no corpus).
-- **Previous-head differential mapped:** each class maps to a fix or a finding (n/a: first round).
+- **Every corpus current:** each generator triggers and just misses every decision (n/a below Deep: no corpus).
+- **Previous-head differential mapped:** each class maps to a fix or a finding (n/a: first round, meaning
+  the only Rounds row is round 1 with no previous reviewed SHA).
 - **No open decisions:** including any decided only in the PR text.
 - **No verdict cap:** `fail` if the code couldn't execute, the depth was lowered (`--depth` or **lighter**), a
   review fetch failed, or an external PR ran outside the strict sandbox.
 
 | Gate | n/a allowed | Status | Evidence |
 |---|---|---|---|
-| Every corpus current | yes | | |
-| Previous-head differential mapped | yes | | |
+| Every corpus current | below deep | | |
+| Previous-head differential mapped | first round | | |
 | D10 finding verifier | no findings or at light | | |
 | D10 blind adversary | below deep | | |
 | No open decisions | no | | |

@@ -137,6 +137,8 @@ case_ "partial intent row" 1 "NOT YET" '/^| 1 | escape/s/done |$/partial |/'
 case_ "partial intent row with a note" 1 "NOT YET" '/^| 1 | escape/s/done |$/partial (2 of 3) |/'
 case_ "intent row not-run" 1 "NOT YET" '/^| 1 | escape/s/done |$/not-run |/'
 case_ "intent ledger has no rows" 1 "NOT YET" '/^| 1 | escape/d'
+case_ "promised behaviour marked n/a" 1 "NOT YET" '/^| 1 | escape/s/done |$/n\/a |/'
+case_ "no-intent row" 0 "MERGE" 's/^| 1 | escape.*/| 1 | n\/a: PR states no behaviour | n\/a | n\/a | n\/a |/'
 
 # Dimensions, with n/a rules from the template
 case_ "dimension not run" 1 "NOT YET" '/^| D4 Break it/s/finding/not-run/'
@@ -147,6 +149,18 @@ case_ "D2 can't be n/a at Standard" 1 "NOT YET" '/^| Depth and why/s/Deep/Standa
 case_ "Light skips D2 and D10" 0 "MERGE" '/^| Depth and why/s/Deep/Light/; /^| D2 Blast/s/pass/n\/a/; /^| D10 Verif/s/pass/n\/a/; /^| D10 /s/pass/n\/a/'
 case_ "D9 can't be n/a at Light" 1 "NOT YET" '/^| Depth and why/s/Deep/Light/; /^| D9 Tests/s/pass/n\/a/'
 case_ "D0 can't be n/a at Light" 1 "NOT YET" '/^| Depth and why/s/Deep/Light/; /^| D0 Inputs/s/pass/n\/a/'
+# Rows grouped by unit: an n/a on any row counts, not just the last one.
+case_ "n/a unit row before a pass row" 1 "NOT YET" 's/^| D1 Intent .*/| D1 Intent (unit A) | n\/a | none | skipped |\
+&/'
+case_ "n/a unit row with a colon label" 1 "NOT YET" 's/^| D1 Intent .*/| D1: Intent (unit A) | n\/a | none | skipped |\
+&/'
+case_ "n/a unit row with a bold label" 1 "NOT YET" 's/^| D1 Intent .*/| **D1** Intent (unit A) | n\/a | none | skipped |\
+&/'
+case_ "unknown dimension row" 1 "NOT YET" 's/^| D1 Intent .*/&\
+| D11 Extra | pass | x | n\/a |/'
+case_ "bold dimension label" 0 "MERGE" 's/^| D1 Intent /| **D1** Intent /'
+case_ "grouped pass rows" 0 "MERGE" 's/^| D1 Intent .*/| D1 Intent (unit A) | pass | 1 of 1 done | n\/a |\
+&/'
 
 # Depth
 case_ "depth row deleted" 1 "NOT YET" '/^| Depth and why/d; /^| D10 blind/s/pass/n\/a/'
@@ -156,7 +170,14 @@ case_ "blind adversary n/a at Standard" 0 "MERGE" '/^| Depth and why/s/Deep/Stan
 
 # Gates
 case_ "finding verifier can't be n/a with open findings" 1 "NOT YET" '/^| D10 finding/s/pass/n\/a/'
-case_ "first round has no previous head" 0 "MERGE" '/^| Previous-head/s/pass/n\/a/'
+case_ "first round has no previous head" 0 "MERGE" 's/^| 2 | 4466eed | b01b69c/| 1 | 4466eed | n\/a/; /^| Previous-head/s/pass/n\/a/'
+case_ "later round can't skip the differential" 1 "NOT YET" '/^| Previous-head/s/pass/n\/a/'
+case_ "round 1 label with a previous head isn't a first round" 1 "NOT YET" 's/^| 2 | 4466eed/| 1 | 4466eed/; /^| Previous-head/s/pass/n\/a/'
+case_ "two rows labelled round 1 aren't a first round" 1 "NOT YET" 's/^| 2 | 4466eed | b01b69c/| 1 | b01b69c | n\/a | x | y |\
+| 1 | 4466eed | n\/a/; /^| Previous-head/s/pass/n\/a/'
+case_ "corpus can't be n/a at Deep" 1 "NOT YET" '/^| Every corpus/s/pass/n\/a/'
+case_ "corpus n/a at Standard" 0 "MERGE" '/^| Depth and why/s/Deep/Standard/; /^| D10 blind/s/pass/n\/a/; /^| Every corpus/s/pass/n\/a/'
+case_ "last round is behind the head" 1 "NOT YET" 's/^| 2 | 4466eed/| 2 | b01b69c/'
 case_ "open decision" 1 "NOT YET" '/^| No open decisions/s/pass/fail/'
 case_ "verdict cap" 1 "NOT YET" '/^| No verdict cap/s/pass/fail/'
 case_ "gate row deleted" 1 "NOT YET" '/^| Time box/d'
@@ -172,6 +193,17 @@ case_ "readers table has no rows" 1 "NOT YET" '/^| labels()/d'
 case_ "differences table missing" 1 "NOT YET" '/^## Differences by class/,/^| base/d'
 case_ "escaped pipe stays in its cell" 0 "MERGE" 's/two hours on one day/a \\| b/'
 case_ "bare pipe breaks the row" 1 "NOT YET" 's/two hours on one day/a | b/'
+case_ "dash placeholder row" 1 "NOT YET" 's/^| labels() .*/&\
+| - | - | - | - | - |/'
+# Dash placeholders, built from bytes so this file has no dash characters of its own.
+for d in "$(printf '\342\200\224')" "$(printf '\342\200\223')"; do
+  case_ "dash placeholder row ($d)" 1 "NOT YET" "s/^| labels() .*/&\\
+| $d | $d | $d | $d | $d |/"
+done
+case_ "blank row" 1 "NOT YET" 's/^| labels() .*/&\
+|  |  |  |  |  |/'
+case_ "aligned separator" 0 "MERGE" 's/^| labels() .*/| :- | - | - | - | -: |\
+&/; /^| Unit | Reader/{n;d;}'
 
 expect "unfilled template" 1 "NOT YET" "$TEMPLATE"
 

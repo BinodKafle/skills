@@ -13,7 +13,11 @@
     sandbox) or a ledger older than the head gives NOT YET. The review can't override it or attach a condition
     to a MERGE.
   - The ledger template is the one source for the rules: its "n/a allowed" columns say which dimensions and
-    gates may be n/a, and the gate reads them from the template, not from the review's copy.
+    gates may be n/a, and the gate reads them from the template, not from the review's copy. An n/a on any
+    row of a dimension counts when rows are grouped by unit, and a row naming no template dimension gives NOT
+    YET. The corpus gate can't be n/a at Deep, and the previous-head differential can be n/a only when the one
+    Rounds row is round 1. The last Rounds row must be on the current head. An intent row is n/a only when it
+    promises nothing. A blank or dash-only row counts as empty.
   - Findings are a table with Severity, Origin (`introduced`, `pre-existing`, `claimed class`) and Status cells.
   - New ledger tables, one row per item: Rounds, Readers (with the role the value plays for each reader),
     Parameters and channels, Messages and side effects, Differences by class, and Verdict inputs. The

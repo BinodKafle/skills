@@ -23,7 +23,8 @@ function may_be_na(rule,   k, p, i) {
   k = split(rule, p, / or /)
   for (i = 1; i <= k; i++)
     if (p[i] == "yes" || (p[i] == "at light" && depth == "light") ||
-        (p[i] == "below deep" && depth != "deep") || (p[i] == "no findings" && !nfindings)) return 1
+        (p[i] == "below deep" && depth != "deep") || (p[i] == "no findings" && !nfindings) ||
+        (p[i] == "first round" && !later_round)) return 1
   return 0
 }
 BEGIN {
@@ -43,9 +44,11 @@ FNR == 1 { file++; section = "" }
     for (i = 2; i <= n + 1; i++) { h = low(c[i]); sub(/ *\(.*/, "", h); col[h] = i }
     next
   }
-  if ($0 ~ /^[|][ :|-]+$/) { row = 1; next }   # separator row
+  # The separator is the row under the header, and each of its cells has a dash.
+  if (row == 2 && $0 ~ /^[|]( *:?-+:? *[|])+ *$/) next
   label = trim(c[2])
-  split(label, w, " "); dim = w[1]         # a dimension is keyed by its first word (D4)
+  # A dimension is keyed by its first word (D4), with any marks around it dropped (**D4**, D4:).
+  split(label, w, " "); dim = w[1]; gsub(/[*`:]/, "", dim)
 
   if (file == 1) {                         # the template: the rules
     if (section == "Dimensions") { dims[++ndims] = dim; dim_rule[dim] = low(cell("n/a allowed")) }
@@ -56,18 +59,27 @@ FNR == 1 { file++; section = "" }
   rows[section]++
   if (section in must_fill) {
     if (n != cols) reason(section ": row \"" label "\" has " n " cells, the header has " cols)
-    for (i = 2; i <= n + 1; i++) if (trim(c[i]) == "") { reason(section ": row \"" label "\" has an empty cell"); break }
+    # A cell of only dashes (hyphen, en or em dash) is a placeholder, not a value.
+    for (i = 2; i <= n + 1; i++) if (trim(c[i]) ~ "^(-|\342\200\223|\342\200\224| )*$") { reason(section ": row \"" label "\" has an empty cell"); break }
   }
   if (section == "Scope" && low(label) == "head sha") ledger_head = trim(c[3])
   if (section == "Scope" && low(label) ~ /^depth/ && match(low(c[3]), /^(light|standard|deep)/))
     depth = substr(low(c[3]), 1, RLENGTH)
+  # Rows may be grouped by unit, so a dimension can have several rows; an n/a on any of them counts.
   if (section == "Dimensions") {
-    s = dim_status[dim] = low(cell("status"))
+    s = low(cell("status")); dim_seen[dim] = 1
+    if (s == "n/a") dim_na[dim] = 1
     if (s != "pass" && s != "finding" && s != "n/a") reason("Dimensions: " label " is \"" s "\"")
   }
+  # n/a is only for a no-intent row, one whose promised behaviour is itself n/a.
   if (section == "Intent ledger") {
     s = low(c[n + 1])
-    if (s != "done" && s != "n/a") reason("Intent ledger: row \"" label "\" is \"" s "\"")
+    if (s != "done" && !(s == "n/a" && low(cell("promised behaviour")) ~ /^n\/a/)) reason("Intent ledger: row \"" label "\" is \"" s "\"")
+  }
+  # A later round: more than one row, a round past 1, or a previous reviewed head. The last row is this round.
+  if (section == "Rounds") {
+    if (rows[section] > 1 || low(label) != "1" || low(cell("previous reviewed sha")) !~ /^(n\/a|none)$/) later_round = 1
+    round_head = trim(cell("head sha"))
   }
   if (section == "Findings" && low(label) != "none") {
     sev = low(cell("severity")); org = low(cell("origin")); st = low(cell("status"))
@@ -90,9 +102,10 @@ END {
   for (i = 1; i <= ntables; i++) if (!rows[tables[i]]) reason(tables[i] ": no rows (write one n/a row with the reason)")
   for (i = 1; i <= ndims; i++) {
     d = dims[i]
-    if (!(d in dim_status)) reason("Dimensions: " d " is missing")
-    else if (dim_status[d] == "n/a" && !may_be_na(dim_rule[d])) reason("Dimensions: " d " can'\''t be n/a here (n/a allowed: " dim_rule[d] ")")
+    if (!(d in dim_seen)) reason("Dimensions: " d " is missing")
+    else if (dim_na[d] && !may_be_na(dim_rule[d])) reason("Dimensions: " d " can'\''t be n/a here (n/a allowed: " dim_rule[d] ")")
   }
+  for (d in dim_seen) if (!(d in dim_rule)) reason("Dimensions: \"" d "\" is not a dimension in the template")
   for (i = 1; i <= ngates; i++) {
     g = gates[i]
     if (!(g in gate_status)) { reason("Verdict inputs: gate \"" g "\" is missing"); continue }
@@ -100,6 +113,7 @@ END {
     if (s != "pass" && !(s == "n/a" && may_be_na(gate_rule[g]))) reason("gate " g " is \"" s "\"")
   }
   if (!same_sha(ledger_head, head)) reason("ledger head \"" ledger_head "\" is not the current head " head)
+  if (!same_sha(round_head, head)) reason("Rounds: the last round head \"" round_head "\" is not the current head " head)
   if (blocked) { print "DO NOT MERGE" reasons; exit 2 }
   if (reasons != "") { print "NOT YET" reasons; exit 1 }
   print "MERGE"; exit 0
