@@ -23,3 +23,7 @@ Flip a comparison (`<` / `<=`, `==` / `!=`), negate a condition, drop a guard, s
 3. **Equivalent:** show no input tells them apart, and drop it.
 
 Judge survivors against ground truth (`oracles.md`), not your own expectation.
+
+## Limits
+Mutation measures the tests, not the spec: a missing branch or pass yields no mutant. A high kill rate is never
+evidence of completeness; the decision-driven corpus (`corpus.md`) is.
