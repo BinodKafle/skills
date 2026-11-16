@@ -1,7 +1,7 @@
 # Review ledger: <PR or branch>
 
-Every row is filled, or marked `n/a` or `not-run` with the reason. A table that doesn't apply gets one `n/a`
-row saying why. `scripts/verdict-gate.sh` computes the verdict from this file, so keep the section names, column
+Every row is filled, or marked `n/a` or `not-run` with the reason; a `not-run` anywhere gives NOT YET. Replace
+the hint text in Scope. A table that doesn't apply gets one `n/a` row saying why. `scripts/verdict-gate.sh` computes the verdict from this file, so keep the section names, column
 names and row labels as they are, even on a large PR (group rows by unit inside each table). The gate takes each
 "n/a allowed" rule from this template, not from your copy. Escape a `|` inside a cell as `\|`. The report copies
 the dimension table and findings as they are.
@@ -92,7 +92,9 @@ Every note, log field, error and side effect the change adds or alters.
 
 ## Differences by class
 Every difference from the base and from the previous reviewed head, grouped by class. A count is never a
-verdict: each class maps to an intent row or a fix in this round, or it is a finding.
+verdict: each class maps to an intent row or a fix in this round, or it is a finding. Write the last cell as
+`intent <#>` or `finding <ID>` (the gate checks the row exists), or `fix: <what>` on a previous-head row only.
+With no differences, write one row with Count `0` and `n/a` in the last cell.
 
 | Compared with (base / previous head) | Class | Count | One example (input → output) | Intent row, fix, or finding id |
 |---|---|---|---|---|
@@ -107,13 +109,17 @@ verdict: each class maps to an intent row or a fix in this round, or it is a fin
 
 ## Findings
 Blockers first, each with its minimal input and observed output. With no findings, write one row with ID
-`none`. The gate reads three cells:
+`none` and `n/a` in every other cell (any other value is read as a finding). The gate reads five cells:
 - **Severity:** blocker, major, minor or nit (`references/severity.md`).
+- **Run / read:** `run`, or `read` when the code couldn't run and the finding comes from reading it.
 - **Origin:** `introduced` (including a pre-existing defect the change makes worse), `pre-existing`, or
   `claimed class` (pre-existing, in the class the change claims to fix; gates as introduced).
-- **Status:** `open`, `fixed@<head SHA>` (its trigger re-run on this head), `rejected: why` or `stale`.
+- **Reproduced by:** who confirmed it; name the verifier when one did.
+- **Status:** `open`, `fixed@<head SHA>` (its trigger re-run on this head), `rejected: why` or `stale`. Any
+  other value gives NOT YET.
 
-An open blocker, or an open major that isn't `pre-existing`, gives DO NOT MERGE.
+An open `run` blocker, or an open `run` major that isn't `pre-existing`, gives DO NOT MERGE. An open `read`
+finding gives DO NOT MERGE only as a blocker a verifier confirmed; any other open `read` finding gives NOT YET.
 
 | ID | Severity | File:line | Run / read | Trigger (command) | Expected vs observed | Origin | Reproduced by | Status |
 |---|---|---|---|---|---|---|---|---|
@@ -134,11 +140,12 @@ Before the report:
 
 ## Verdict inputs
 Status is pass or fail; n/a only where "n/a allowed" says so. Anything else, not-run included, gives NOT YET.
-Findings and intent aren't gates here: the gate reads their tables.
+Findings and intent aren't gates here: the gate reads their tables. The "n/a allowed" words, here and in
+Dimensions, are `yes`, `no`, `at light`, `below deep`, `no findings` and `first round` (the only Rounds row is
+round 1 with no previous reviewed SHA), joined by `or`. The gate rejects any other word.
 
-- **Every corpus current:** each generator triggers and just misses every decision (n/a below Deep: no corpus).
-- **Previous-head differential mapped:** each class maps to a fix or a finding (n/a: first round, meaning
-  the only Rounds row is round 1 with no previous reviewed SHA).
+- **Every corpus current:** each generator triggers and just misses every decision.
+- **Previous-head differential mapped:** each class maps to a fix or a finding.
 - **No open decisions:** including any decided only in the PR text.
 - **No verdict cap:** `fail` if the code couldn't execute, the depth was lowered (`--depth` or **lighter**), a
   review fetch failed, or an external PR ran outside the strict sandbox.

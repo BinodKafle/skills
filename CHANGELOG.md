@@ -5,19 +5,25 @@
 - **break-this-pr:** the verdict is now computed from the ledger, and fix rounds are reviewed as new code. Two
   real PRs showed most escapes broke a rule the skill already had, so this release adds forcing functions
   first and method second.
-  - New `scripts/verdict-gate.sh` reads the ledger and prints MERGE, NOT YET or DO NOT MERGE. It reads the
-    Findings and Intent tables' cells, not a summary: an open blocker, or an open major that isn't
-    pre-existing, gives DO NOT MERGE. An empty cell, a missing dimension or gate, a not-run, an n/a the
-    template doesn't allow, a depth not named, a fix not re-checked on the head, an intent row not done, an
-    open decision, a verdict cap (cannot execute, lowered depth, failed review fetch, external PR outside the
-    sandbox) or a ledger older than the head gives NOT YET. The review can't override it or attach a condition
-    to a MERGE.
-  - The ledger template is the one source for the rules: its "n/a allowed" columns say which dimensions and
-    gates may be n/a, and the gate reads them from the template, not from the review's copy. An n/a on any
-    row of a dimension counts when rows are grouped by unit, and a row naming no template dimension gives NOT
-    YET. The corpus gate can't be n/a at Deep, and the previous-head differential can be n/a only when the one
-    Rounds row is round 1. The last Rounds row must be on the current head. An intent row is n/a only when it
-    promises nothing. A blank or dash-only row counts as empty.
+  - New `scripts/verdict-gate.sh` reads the ledger and prints MERGE, NOT YET or DO NOT MERGE. The review can't
+    override it or attach a condition to a MERGE. It reads table cells, not a summary.
+    - **DO NOT MERGE:** an open blocker, or an open major that isn't pre-existing. A finding found only by
+      reading code that couldn't run blocks only as a blocker a verifier confirmed. A `none` finding row with
+      anything but n/a in it is read as a finding.
+    - **NOT YET:** an empty, dash-only or `not-run` cell in any table; a missing table, Scope field, dimension or
+      gate; Scope text left as the template's hint; an n/a the template doesn't allow; a depth not named; a fix
+      not re-checked on the head; a finding status the gate doesn't know (including `rejected` with no
+      reason); any other open read finding; an intent row not done; a difference not mapped to intent rows or
+      findings that exist; an open decision; a verdict cap (cannot execute, lowered depth, failed review fetch, external
+      PR outside the sandbox); a ledger or last round older than the head.
+  - The ledger template is the one source for the rules. The gate reads from it, not from the review's copy,
+    which tables and Scope fields are required and which dimensions and gates may be n/a. A misspelled "n/a
+    allowed" word is reported.
+    - An n/a on any row of a dimension counts when rows are grouped by unit, and a row naming no template
+      dimension gives NOT YET.
+    - The corpus gate can't be n/a at Deep. The previous-head differential can be n/a only when the one Rounds
+      row is round 1.
+    - An intent row is n/a only when it promises nothing.
   - Findings are a table with Severity, Origin (`introduced`, `pre-existing`, `claimed class`) and Status cells.
   - New ledger tables, one row per item: Rounds, Readers (with the role the value plays for each reader),
     Parameters and channels, Messages and side effects, Differences by class, and Verdict inputs. The
@@ -28,10 +34,13 @@
     re-checked.
   - Method: every decision attacked in both directions; the change's goal checked where the rule runs out;
     transform checks (idempotent, embedded formats stay valid, the producer's own syntax read by each consumer);
-    neighbour, parameter and channel corpus axes; properties need a preservation half and a negative control;
-    test exclusions are attack targets; silent fallbacks and output size are D8 checks.
-  - A pre-existing defect in the class the change claims to fix gates as if introduced. A decision made only in
-    the PR text is open.
+    neighbour, parameter, channel, reader and dialect corpus axes; properties need a preservation half and a
+    negative control; test exclusions are attack targets; silent fallbacks, output size and a `try` wider than
+    the call that can fail are D8 checks. D2 treats a unit made finer, coarser or differently shaped as
+    redefined. D3 varies each element of a trigger to find the rest of the class. D9 flags test inputs that
+    share one scale, and its Words check covers docstrings and comments.
+  - A pre-existing defect in the class the change claims to fix gates as if introduced and makes its intent row
+    partial. A decision made only in the PR text is open.
   - New PR type: sanitizer, escaper or encoder. `mutation.md` notes what a kill rate can't show.
 
 ## 1.4.1 (2026-10-30)

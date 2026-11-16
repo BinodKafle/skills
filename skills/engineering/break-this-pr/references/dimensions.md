@@ -37,8 +37,8 @@ Skim gets a read.
   removes it or hides the symptom; the sibling search.
 - **Break it:** symptom fixes look like a new guard, a broad try/except, a special case for the reported input, or a
   threshold tuned to the example. Run the bug's input class on every sibling with the same pattern. From each
-member you find, vary every element of its trigger in turn (position, delimiter, quoting, count) to enumerate
-the rest of the class.
+  member you find, vary every element of its trigger in turn (position, delimiter, quoting, count) to enumerate
+  the rest of the class.
 - A test must fail on the base and pass on the head, for the bug and each covered sibling.
 
 ## D4 Break it

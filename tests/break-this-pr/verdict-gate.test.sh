@@ -19,12 +19,27 @@ ledger() {
 | Field | Value |
 |---|---|
 | Head SHA | $HEAD |
+| Base SHA | b01b69c |
 | Depth and why | Deep: prep.py is Verify |
+| Profile | loaded from base |
+| Test command and environment that worked | pytest, py3.12 |
+| Outside reviews fetched | 0 |
+| Changed units | prep.py escape() |
+| Removals (unit → what it did → where it lives now) | none |
+| Not reviewed (and why) | none |
+| Harness files changed in head | none |
+| Review folder | .claude/review/pr-1 |
+| Marker (absolute path) | /repo/.claude/review/.active |
 
 ## Rounds
 | Round | Head SHA | Previous reviewed SHA | Files changed since | Units |
 |---|---|---|---|---|
 | 2 | 4466eed | b01b69c | git diff --name-only → 4 | prep.py Verify |
+
+## Risk map
+| Unit | Intent row | Tier | Why | Promoted by | Checks run |
+|---|---|---|---|---|---|
+| prep.py escape() | 1 | Verify | parsing | n/a | ledger, corpus, mutation |
 
 ## Dimensions
 | Dim | Status | Evidence | Reason |
@@ -66,16 +81,37 @@ ledger() {
 |---|---|---|---|---|
 | n/a | n/a | n/a | n/a | no message changed |
 
+## Corpus and differential
+| Corpus | Axes crossed | Cells | Regressions | Improvements | Both wrong | Cannot produce |
+|---|---|---|---|---|---|---|
+| cells.py | position x quote | 40 | 0 | 12 | 0 | none |
+
 ## Differences by class
-| Compared with | Class | Count | Example | Maps to |
+| Compared with | Class | Count | Example | Intent row, fix, or finding id |
 |---|---|---|---|---|
 | base | prefix added before a call | 12 | a → 'a | intent 1 |
+| previous head | guard moved before the strip | 2 | ' =a → '' =a | fix: F2 guard order |
+
+## Mutation
+| Mutants | Killed | Survivors |
+|---|---|---|
+| 20 / 20 | 20 | none |
+
+## Outside reviewers' findings
+| Reviewer | Finding | On current head | Evidence |
+|---|---|---|---|
+| n/a | n/a | n/a | local branch, none fetched |
 
 ## Findings
 | ID | Severity | File:line | Run / read | Trigger | Expected vs observed | Origin | Reproduced by | Status |
 |---|---|---|---|---|---|---|---|---|
 | F1 | minor | prep.py:12 | run | python t.py | note vs none | introduced | verifier | open |
 | F2 | major | prep.py:30 | run | python stale_rejected.py | 'a vs a | introduced | verifier | fixed@4466eed |
+
+## Verifier summary
+| Verifier | Confirmed | Rejected | New findings |
+|---|---|---|---|
+| sonnet | F1, F2 | none | none |
 
 ## Verdict inputs
 | Gate | Status | Evidence |
@@ -129,6 +165,18 @@ case_ "fixed on an older head" 1 "NOT YET" "$F2"'s/fixed@4466eed/fixed@b01b69c/'
 case_ "unknown severity" 1 "NOT YET" "$F1"'s/minor/high/'
 case_ "unknown origin" 1 "NOT YET" "$F1"'s/introduced/new/'
 case_ "unknown status" 1 "NOT YET" "$F1"'s/open |$/maybe |/'
+case_ "none row hiding an open blocker" 2 "DO NOT MERGE" "$F1"'s/minor/blocker/; '"$F1"'s/^| F1 /| none /'
+case_ "none row with a stray cell" 1 "NOT YET" "$F1"'d; '"$F2"'s/.*/| none | n\/a | n\/a | n\/a | n\/a | n\/a | n\/a | n\/a | open |/; /^| D10 finding/s/pass/n\/a/'
+case_ "rejected without a reason" 1 "NOT YET" "$F2"'s/fixed@4466eed/rejected/'
+case_ "major with a misspelled status" 1 "NOT YET" "$F2"'s/fixed@4466eed/fixd@4466eed/'
+case_ "blocker with an unknown status" 1 "NOT YET" "$F1"'s/minor/blocker/; '"$F1"'s/open |$/maybe |/'
+# A read finding (code couldn't run) blocks only as a blocker a verifier confirmed; otherwise it caps at NOT YET.
+case_ "read blocker a verifier confirmed" 2 "DO NOT MERGE" "$F1"'s/minor/blocker/; '"$F1"'s/| run |/| read |/'
+case_ "read blocker nobody confirmed" 1 "NOT YET" "$F1"'s/minor/blocker/; '"$F1"'s/| run |/| read |/; '"$F1"'s/| verifier |/| self |/'
+case_ "read major never blocks" 1 "NOT YET" "$F2"'s/| run |/| read |/; '"$F2"'s/fixed@4466eed/open/'
+case_ "open read minor caps" 1 "NOT YET" "$F1"'s/| run |/| read |/'
+case_ "fixed read finding" 0 "MERGE" "$F2"'s/| run |/| read |/'
+case_ "unknown run or read" 1 "NOT YET" "$F1"'s/| run |/| ran |/'
 case_ "no findings" 0 "MERGE" "$F1"'d; '"$F2"'s/.*/| none | n\/a | n\/a | n\/a | n\/a | n\/a | n\/a | n\/a | n\/a |/; /^| D10 finding/s/pass/n\/a/'
 case_ "findings table has no rows" 1 "NOT YET" "$F1"'d; '"$F2"'d'
 
@@ -191,6 +239,27 @@ case_ "bold status" 0 "MERGE" '/^| Time box/s/pass/**pass**/'
 case_ "empty reader cell" 1 "NOT YET" 's/two hours on one day//'
 case_ "readers table has no rows" 1 "NOT YET" '/^| labels()/d'
 case_ "differences table missing" 1 "NOT YET" '/^## Differences by class/,/^| base/d'
+case_ "not-run reader row" 1 "NOT YET" 's/^| labels() .*/| labels() | not-run | not-run | not-run | not-run |/'
+case_ "not-run assumption cell" 1 "NOT YET" 's/| t1 |$/| not-run: time box |/'
+case_ "empty base SHA" 1 "NOT YET" 's/^| Base SHA | b01b69c |/| Base SHA | |/'
+case_ "scope field deleted" 1 "NOT YET" '/^| Not reviewed/d'
+case_ "scope field left as the template hint" 1 "NOT YET" 's/^| Profile | loaded from base |/| Profile | loaded from base \/ derived (list what was derived) |/'
+case_ "mutation table missing" 1 "NOT YET" '/^## Mutation/,/^| 20 \/ 20/d'
+case_ "corpus table missing" 1 "NOT YET" '/^## Corpus and/,/^| cells.py/d'
+case_ "risk map has no rows" 1 "NOT YET" '/^| prep.py escape() | 1/d'
+case_ "verifier summary has no rows" 1 "NOT YET" '/^| sonnet/d'
+case_ "outside reviewers has no rows" 1 "NOT YET" '/^| n\/a | n\/a | n\/a | local branch/d'
+case_ "unmapped difference" 1 "NOT YET" 's/| intent 1 |$/| unmapped |/'
+case_ "difference mapped to a missing intent row" 1 "NOT YET" 's/| intent 1 |$/| intent 7 |/'
+case_ "difference mapped to two intent rows" 0 "MERGE" 's/^| 1 | escape.*/&\
+| 2 | keep plain text | prep.py on b.csv | unchanged | done |/; s/| intent 1 |$/| intent 1, 2 |/'
+case_ "difference mapped to an intent row and a finding" 0 "MERGE" 's/| intent 1 |$/| intent 1, finding F1 |/'
+case_ "one of two intent rows missing" 1 "NOT YET" 's/| intent 1 |$/| intent 1, 7 |/'
+case_ "difference mapped to a finding" 0 "MERGE" 's/| intent 1 |$/| finding F1 |/'
+case_ "difference mapped to a missing finding" 1 "NOT YET" 's/| intent 1 |$/| finding F9 |/'
+case_ "base difference mapped to a fix" 1 "NOT YET" 's/| intent 1 |$/| fix: something |/'
+case_ "no differences" 0 "MERGE" '/^| base | prefix/d; s/^| previous head | .*/| n\/a | n\/a | 0 | n\/a | n\/a |/'
+case_ "n/a mapping with a count" 1 "NOT YET" 's/| intent 1 |$/| n\/a |/'
 case_ "escaped pipe stays in its cell" 0 "MERGE" 's/two hours on one day/a \\| b/'
 case_ "bare pipe breaks the row" 1 "NOT YET" 's/two hours on one day/a | b/'
 case_ "dash placeholder row" 1 "NOT YET" 's/^| labels() .*/&\
@@ -207,9 +276,25 @@ case_ "aligned separator" 0 "MERGE" 's/^| labels() .*/| :- | - | - | - | -: |\
 
 expect "unfilled template" 1 "NOT YET" "$TEMPLATE"
 
+# A misspelled "n/a allowed" rule in the template is reported, not read as "not allowed".
+mkdir -p "$WORK/skill/scripts" "$WORK/skill/templates"
+cp "$GATE" "$WORK/skill/scripts/"
+sed 's/^| D3 Root cause | yes |/| D3 Root cause | at-light |/' "$TEMPLATE" > "$WORK/skill/templates/ledger.md"
+ledger > "$WORK/ledger.md"
+sh "$WORK/skill/scripts/verdict-gate.sh" "$WORK/ledger.md" "$HEAD" | grep -q 'template: D3 has an unknown n/a rule "at-light"' ||
+  { failures=$((failures + 1)); echo "FAIL a misspelled template rule isn't reported"; }
+
 ledger | sed '/^| Time box/d' > "$WORK/ledger.md"
 sh "$GATE" "$WORK/ledger.md" "$HEAD" | grep -q 'gate "Time box" is missing' ||
   { failures=$((failures + 1)); echo "FAIL a deleted gate isn't reported as missing"; }
+
+# Status messages name the actual mistake.
+ledger | sed '/^| F2 /s/fixed@4466eed/rejected/' > "$WORK/ledger.md"
+sh "$GATE" "$WORK/ledger.md" "$HEAD" | grep -q 'F2 is rejected without a reason' ||
+  { failures=$((failures + 1)); echo "FAIL a bare rejected isn't reported as missing its reason"; }
+ledger | sed '/^| F2 /s/fixed@4466eed/fixd@4466eed/' > "$WORK/ledger.md"
+sh "$GATE" "$WORK/ledger.md" "$HEAD" | grep -q 'reject' &&
+  { failures=$((failures + 1)); echo "FAIL a misspelled fixed@ is reported as a rejection"; }
 
 sh "$GATE" >/dev/null 2>&1; [ $? -eq 64 ] || { failures=$((failures + 1)); echo "FAIL usage: no arguments isn't 64"; }
 sh "$GATE" "$WORK/missing.md" "$HEAD" >/dev/null 2>&1

@@ -188,8 +188,8 @@ match several. The tier decides how much proof a unit gets, so heavy work goes o
 - **Time box.** When it runs out, stop, mark the remaining rows not-run, and cap the verdict at NOT YET.
 - **Cannot execute.** If the code can't run here (missing dependencies, no runner, or the safety rules forbid
   it), list what couldn't run and why, then still review every unit by reading, at its tier. Label those findings
-  `read` and have a verifier re-read each against the code. A confirmed `read` blocker gives DO NOT MERGE;
-  otherwise cap the verdict at NOT YET. Reading never earns a MERGE on a Check or Verify unit.
+  `read` and have a verifier re-read each against the code; the ledger's Findings section says how a `read`
+  finding gates. Reading never earns a MERGE on a Check or Verify unit.
 - **Speed.** Follow `references/speed.md`. Never drop a check that applies, or that a unit's tier calls for, to
   save time; lower a tier only through the checkpoint's **lighter**.
 
@@ -296,9 +296,9 @@ the ledger and the report; raw logs stay in `<dir>/scratch/`.
 Each finding is a row of the ledger's Findings table, which defines its columns. Severity (blocker, major,
 minor, nit) follows user impact, as defined in `references/severity.md`.
 
-Verdict: DO NOT MERGE on any open blocker, or an open major introduced by this change or in the class it
-claims to fix; NOT YET on any gap or cap; otherwise MERGE, with the residual risk stated. The gates are defined
-in the ledger's "Verdict inputs".
+Verdict: DO NOT MERGE on an open finding that blocks, NOT YET on any gap or cap, otherwise MERGE with the
+residual risk stated. Which findings block is defined once, in the ledger's Findings section; the gates are in
+its "Verdict inputs".
 
 Fill the ledger, then run `<this skill's base directory>/scripts/verdict-gate.sh <ledger> <head SHA>`, taking the
 head SHA from the forge (or `git rev-parse` on the head ref), not from the ledger. Its output is the verdict and

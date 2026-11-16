@@ -10,10 +10,8 @@ By impact on users and data, not by kind of code.
 - **Nit:** style, naming or wording with no behaviour effect.
 
 ## Gating
-The verdict rules are in SKILL.md §8. Two notes on applying them:
+Which findings block is defined in the ledger template's Findings section. Notes on applying it:
 - Pre-existing majors become follow-ups, with Origin `pre-existing`. One the change makes worse is
   `introduced`; one in the class the change claims to fix is `claimed class`, gates as introduced and makes its
   D1 row partial.
-- Minors and nits never block.
-- A `read` finding (code couldn't run) blocks only as a verifier-confirmed blocker; otherwise the verdict is
-  capped at NOT YET.
+- Minors and nits never block. A `read` finding gates as the ledger's Findings section says.

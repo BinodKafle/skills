@@ -60,7 +60,8 @@ A run creates the marker `.claude/review/.active` at the repo root (turning on t
 stops at a checkpoint (proceed / lighter / stop), and ends with the full report from
 [templates/report.md](./templates/report.md), then deletes the marker. The verdict comes from
 [scripts/verdict-gate.sh](./scripts/verdict-gate.sh), which reads the ledger: any empty row, skipped gate, cap or
-ledger older than the PR's head gives NOT YET, and an open blocker gives DO NOT MERGE.
+ledger older than the PR's head gives NOT YET, and an open finding that blocks (as the ledger template defines
+it) gives DO NOT MERGE.
 
 ### Example report (shortened)
 
